@@ -1,0 +1,33 @@
+name: Backend model verification
+
+on:
+  push:
+    branches:
+      - feat/kestrel-windows-hosting-prep
+  pull_request:
+    branches:
+      - feat/kestrel-windows-hosting-prep
+
+permissions:
+  contents: read
+
+jobs:
+  backend-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore LabTrack.sln
+
+      - name: Build solution
+        run: dotnet build LabTrack.sln --no-restore --configuration Release
+
+      - name: Run EF model metadata tests
+        run: dotnet test src/backend/LabTrack.Infrastructure.Tests/LabTrack.Infrastructure.Tests.csproj --no-build --configuration Release

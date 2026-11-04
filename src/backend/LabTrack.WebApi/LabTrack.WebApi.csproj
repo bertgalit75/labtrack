@@ -4,5 +4,6 @@
     <ProjectReference Include="../LabTrack.Application/LabTrack.Application.csproj" />
     <ProjectReference Include="../LabTrack.Infrastructure/LabTrack.Infrastructure.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />
   </ItemGroup>
 </Project>

@@ -10,10 +10,22 @@ public sealed class Patient
     public string? Suffix { get; private set; }
     public DateOnly? DateOfBirth { get; private set; }
     public string? SexAtRegistration { get; private set; }
+    public string? CivilStatus { get; private set; }
+    public string? Nationality { get; private set; }
+    public string? MobileNumber { get; private set; }
+    public string? EmailAddress { get; private set; }
+    public string? AddressLine1 { get; private set; }
+    public string? AddressLine2 { get; private set; }
+    public string? Barangay { get; private set; }
+    public string? CityMunicipality { get; private set; }
+    public string? Province { get; private set; }
+    public string? PostalCode { get; private set; }
     public string PatientStatus { get; private set; } = "Active";
     public long? CanonicalPatientId { get; private set; }
     public DateTime RegisteredAtUtc { get; private set; }
     public long RegisteredByUserId { get; private set; }
+    public DateTime? UpdatedAtUtc { get; private set; }
+    public long? UpdatedByUserId { get; private set; }
     public long RowVersion { get; private set; } = 1;
 
     private Patient() { }
