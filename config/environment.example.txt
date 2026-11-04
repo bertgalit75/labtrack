@@ -1,0 +1,8 @@
+# Configure through an approved secret-management procedure, not in source control.
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=https://0.0.0.0:443
+Kestrel__Endpoints__Https__Url=https://0.0.0.0:443
+Kestrel__Endpoints__Https__Certificate__Path=C:\LabTrack\certs\labtrack.pfx
+Kestrel__Endpoints__Https__Certificate__Password=<set-out-of-band>
+# Connection string shape only; do not use until provider/mappings are qualified:
+# ConnectionStrings__LabTrack=Server=127.0.0.1;Port=3306;Database=<approved_db>;User=<least_privilege_user>;Password=<secret>;SslMode=Preferred;

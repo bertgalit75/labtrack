@@ -1,0 +1,24 @@
+[Unit]
+Description=LabTrack ASP.NET Core application
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/labtrack/app
+ExecStart=/usr/bin/dotnet /opt/labtrack/app/LabTrack.WebApi.dll
+Restart=on-failure
+RestartSec=5
+User=labtrack
+Group=labtrack
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
+# Load secrets from a root-owned EnvironmentFile outside the application directory.
+# EnvironmentFile=/etc/labtrack/labtrack.env
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/labtrack
+
+[Install]
+WantedBy=multi-user.target

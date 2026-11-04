@@ -1,0 +1,10 @@
+# Example MariaDB server configuration fragment. Review for the installed MariaDB version.
+# Keep the database reachable only from the same machine as the LabTrack API.
+[mysqld]
+bind-address=127.0.0.1
+port=3306
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+
+# Do not put application passwords here. Create a dedicated least-privilege DB account
+# only after EF provider qualification and separately approved DB provisioning.

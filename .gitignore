@@ -1,0 +1,39 @@
+# .NET
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# Node
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pfx
+*.p12
+*.key
+
+# Local data and clinical records
+data/
+uploads/
+reports/
+backups/
+*.bak
+*.dump
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
