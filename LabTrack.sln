@@ -10,7 +10,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabTrack.Infrastructure", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabTrack.WebApi", "src\backend\LabTrack.WebApi\LabTrack.WebApi.csproj", "{A4B5B4E0-CE12-4E1C-91A3-010101010004}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabTrack.Infrastructure.Tests", "src\\backend\\LabTrack.Infrastructure.Tests\\LabTrack.Infrastructure.Tests.csproj", "{A4B5B4E0-CE12-4E1C-91A3-010101010005}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabTrack.Infrastructure.Tests", "src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj", "{A4B5B4E0-CE12-4E1C-91A3-010101010005}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
