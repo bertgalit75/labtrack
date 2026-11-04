@@ -20,11 +20,13 @@ public sealed class ExaminationTest
     public long ExaminationTestId { get; private set; }
     public long ExaminationId { get; private set; }
     public long TestDefinitionVersionId { get; private set; }
-    public ushort TestInstanceNumber { get; private set; }
+    public ushort TestInstanceNumber { get; private set; } = 1;
     public string Status { get; private set; } = "Pending";
     public string Priority { get; private set; } = "Routine";
     public DateTime RequestedAtUtc { get; private set; }
     public long RequestedByUserId { get; private set; }
+    public DateTime? CompletedAtUtc { get; private set; }
+    public long? ActualMethodId { get; private set; }
     private ExaminationTest() { }
 }
 
@@ -53,6 +55,7 @@ public sealed class TestResultRevision
     public long? ReferenceIntervalId { get; private set; }
     public string? UnitSnapshot { get; private set; }
     public string? ReferenceRangeSnapshot { get; private set; }
+    public string? MethodSnapshot { get; private set; }
     public bool IsAbnormal { get; private set; }
     public bool IsCritical { get; private set; }
     public string? Interpretation { get; private set; }
@@ -72,6 +75,11 @@ public sealed class AuditLog
     public long? EntityId { get; private set; }
     public string? Description { get; private set; }
     public string? Reason { get; private set; }
+    public string? BeforeData { get; private set; }
+    public string? AfterData { get; private set; }
+    public string? IpAddress { get; private set; }
+    public string? UserAgent { get; private set; }
+    public string? CorrelationId { get; private set; }
     public DateTime OccurredAtUtc { get; private set; }
     private AuditLog() { }
 }
