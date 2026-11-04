@@ -1,6 +1,6 @@
 # SDD-03 EF Core Implementation Plan
 
-**Status:** 18-table EF model and static metadata tests implemented; execution and MariaDB provider qualification pending  
+**Status:** Initial 18-table EF model, metadata tests, and CI workflow committed; execution and MariaDB provider qualification pending  
 **Target framework:** .NET 10 / EF Core 10  
 **Database target:** MariaDB 10.11.x  
 **Provider direction:** Pomelo, pending a stable EF Core 10-compatible release  
@@ -17,11 +17,13 @@ The other 30 tables in the 48-table SQL installation baseline are intentionally 
 
 **The SQL installation baseline remains unchanged.** This is a narrower EF application model over the existing 48-table installation schema; it does not reduce the physical database to 18 tables.
 
-## 2. Important boundary: foreign keys to excluded principals
+.NET 10 Identity schema version 3 adds an `AspNetUserPasskeys` entity/table. That table is not part of the approved seven-table Identity scope or the SQL baseline. `LabTrackDbContext` explicitly ignores `IdentityUserPasskey<long>` so runtime Identity options cannot silently expand the EF model beyond the approved 18 tables.
 
-Some in-scope SQL tables reference principals that are intentionally excluded from the EF model, including `TestCategories`, `TestMethods`, and `Units`. The in-scope dependent columns are mapped as scalar properties (for example `TestCategoryId`, `DefaultMethodId`, `UnitId`, and `ActualMethodId`), but EF does not create relationships to entity types that are deliberately outside the 18-table allowlist.
+## 2. Foreign keys to excluded principals
 
-Those foreign-key constraints remain defined in the unchanged consolidated SQL installation baseline and remain database-enforced. This is an explicit scope trade-off, not a request to remove those constraints. EF relationships are configured for foreign keys whose principal and dependent tables are both within the 18-table scope.
+Some in-scope SQL tables reference principals that are intentionally excluded from the EF model, including `TestCategories`, `TestMethods`, and `Units`. Their dependent FK columns remain mapped as scalar properties (for example `TestCategoryId`, `DefaultMethodId`, `UnitId`, and `ActualMethodId`), but EF relationships are not created to entity types outside the 18-table allowlist.
+
+Those constraints remain defined in the unchanged consolidated SQL installation baseline and remain database-enforced. EF relationships are configured for FKs whose principal and dependent tables are both within the 18-table scope. This is an explicit scope trade-off, not authorization to remove SQL constraints.
 
 ## 3. Safety and compatibility boundary
 
@@ -35,28 +37,29 @@ The repository retains `net10.0` and EF Core / Identity EF Core 10.0.0. The stab
 
 - Completed missing SQL-backed entity properties for Patients, test catalog entities, examination/result entities, audit records, and the custom Identity user timestamp.
 - Replaced the scaffold mapping in `LabTrackDbContext` with explicit Fluent API mappings for all 18 approved tables.
-- Configured table and column names/types, lengths, date/time precision, decimal precision, unsigned numeric types, defaults, nullability, keys, named indexes, in-scope foreign keys with RESTRICT delete behavior, and four declared CHECK constraints.
+- Configured table/column names and store types, lengths, date/time and decimal precision, unsigned numeric types, defaults, nullability, keys, named indexes, in-scope FKs with RESTRICT delete behavior, and four declared CHECK constraints.
 - Added `LabTrack.Infrastructure.Tests` to the solution.
-- Added model tests for the exact 18-table allowlist, excluded-table absence, all 18 column inventories, named indexes, CHECK constraints, selected critical store types, and RESTRICT behavior of EF-modeled foreign keys.
-
-The model uses scalar FK properties, not EF relationships, for the SQL constraints whose principal tables are excluded by ADR-001. The SQL baseline remains authoritative for those database-level constraints.
+- Added metadata tests for the exact 18-table allowlist, absence of the 30 excluded tables and Identity passkeys, all 18 column inventories, named indexes, CHECK constraints, critical store types, and RESTRICT behavior for EF-modeled FKs.
+- Added `.github/workflows/backend-model-verification.yml` to restore, build, and run the metadata tests on pushes and pull requests to this branch.
 
 ## 5. Verification status
 
-The test project has been committed but **has not yet been executed** in this environment. Static repository edits are not equivalent to a successful build or passing test run. Run the solution build and test suite locally before treating the model as qualified:
+The test project and workflow have been committed, but **no successful build or test run has been observed yet**. The GitHub workflow run lookup returned no run for the workflow-creation commit. Do not describe the code as build-verified or the tests as passing until a run reports success.
+
+Run from the repository root in PowerShell:
 
 ```powershell
 dotnet restore .\LabTrack.sln
-dotnet build .\LabTrack.sln --no-restore
-dotnet test .\src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj --no-build
+dotnet build .\LabTrack.sln --no-restore --configuration Release
+dotnet test .\src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj --no-build --configuration Release
 ```
 
-These commands build the EF model using the InMemory provider; they do not connect to MariaDB or apply migrations. If compilation or assertions fail, correct those failures before proceeding.
+These commands build the EF model using the InMemory provider; they do not connect to MariaDB or apply migrations.
 
 ## 6. Remaining qualification sequence
 
-1. Run the solution build and model tests above; review all failures.
-2. Reconcile any differences between the model metadata and the 18 SQL table definitions.
+1. Obtain a successful solution build and metadata-test run; resolve every failure.
+2. Reconcile any remaining differences between the model metadata and the 18 SQL table definitions.
 3. Re-check official Pomelo release compatibility with EF Core 10. Do not install an incompatible version.
 4. Only after separate explicit authorization, qualify provider behavior against a newly created disposable MariaDB 10.11 database populated with synthetic data.
 5. Never use production or the user's existing local database for qualification. Do not apply migrations.
