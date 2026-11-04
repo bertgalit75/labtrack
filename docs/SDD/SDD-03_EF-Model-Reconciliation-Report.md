@@ -3,13 +3,13 @@
 **Branch:** `feat/kestrel-windows-hosting-prep`  
 **Scope decision:** SDD-03-ADR-001 — Initial 18-Table Persistence Scope  
 **Baseline:** `database/LabTrack_Consolidated_Install.sql` and SDD-03  
-**Verification status:** Source changes committed; automated tests authored but not executed in this environment. No MariaDB connection, SQL execution, or migration was performed.
+**Verification status:** EF mapping, metadata tests, and CI workflow committed. No successful build/test result has been observed yet. No MariaDB connection, SQL execution, or migration was performed.
 
 ## Current result
 
-**IMPLEMENTED — initial 18-table EF mapping and metadata test suite are present; qualification remains pending.**
+**IMPLEMENTED, PENDING EXECUTION —** the source now contains explicit EF mappings and metadata tests for exactly the approved 18-table scope. Do not treat the model as qualified until the solution builds and the tests pass.
 
-The application model is intentionally limited to seven ASP.NET Core Identity tables and eleven application tables. The other 30 tables in the 48-table installation baseline remain intentionally excluded from the EF application model. Their exclusion is not a defect.
+The other 30 tables in the 48-table installation baseline remain intentionally excluded from the EF application model. Their absence is not a defect.
 
 ## Approved table allowlist
 
@@ -17,49 +17,54 @@ The application model is intentionally limited to seven ASP.NET Core Identity ta
 
 **Application (11):** `Patients`, `TestDefinitions`, `TestDefinitionVersions`, `TestParameterDefinitions`, `ReferenceIntervals`, `ResultValueOptions`, `Examinations`, `ExaminationTests`, `TestResults`, `TestResultRevisions`, `AuditLogs`.
 
-## Implemented
+## Implemented source changes
 
-- Added the missing SQL-backed fields to the Patient, test catalog, examination/result, and audit entities.
-- Added `ApplicationUser.DeactivatedAtUtc` to match the SQL `AspNetUsers` definition.
-- Replaced the initial scaffold mapping in `LabTrackDbContext` with explicit mappings for all 18 approved tables.
-- Configured SQL table/column names, relevant store types, lengths, precision, defaults, nullability, primary/composite keys, named unique and secondary indexes, in-scope foreign keys with RESTRICT delete behavior, and four CHECK constraints.
-- Added a dedicated test project to the solution.
+- Added missing SQL-backed properties to Patient, test catalog, examination/result, and audit entities.
+- Added `ApplicationUser.DeactivatedAtUtc`.
+- Replaced the scaffold configuration with explicit table, column, type, length, precision, default, nullability, key, index, in-scope FK, and CHECK constraint mappings.
+- Configured EF-modeled foreign keys to use RESTRICT delete behavior.
+- Explicitly ignored `IdentityUserPasskey<long>`. EF Core 10 Identity schema version 3 adds an `AspNetUserPasskeys` entity, which is outside the approved 18-table model and absent from the SQL installation baseline. The ignore keeps the table allowlist stable.
+- Added the `LabTrack.Infrastructure.Tests` project to `LabTrack.sln`.
+- Added a GitHub Actions workflow to restore, build, and run the model tests for this branch.
 
-## Deliberate EF relationship boundary
+## Foreign keys to excluded principal tables
 
-The SQL schema includes foreign keys from in-scope tables to excluded principals such as `TestCategories`, `TestMethods`, and `Units`. The dependent FK columns remain mapped as scalar properties in EF. EF relationships are not configured for those excluded principal types because doing so would require mapping entities outside the approved 18-table allowlist.
+The SQL baseline contains foreign keys from in-scope tables to out-of-scope principals such as `TestCategories`, `TestMethods`, and `Units`. The corresponding dependent columns are mapped as scalar EF properties, but EF relationships are intentionally not configured because the principal entity types are excluded by ADR-001.
 
-Those constraints remain present in the unchanged SQL installation baseline and are enforced by the database schema. This ADR-001 trade-off must be retained unless a future scope decision changes it.
+Those FK constraints remain in the unchanged SQL installation baseline and are enforced by the database. The EF metadata tests validate the 18-table model boundary and the relationships represented inside that boundary; they do not claim that EF metadata models every SQL FK whose principal is excluded.
 
-## Automated tests authored
+## Metadata tests authored
 
-`src/backend/LabTrack.Infrastructure.Tests/InitialPersistenceModelTests.cs` currently checks:
+`src/backend/LabTrack.Infrastructure.Tests/InitialPersistenceModelTests.cs` currently verifies:
 
 1. Exactly the approved 18 table names are mapped.
-2. None of the 30 intentionally excluded table names is mapped.
-3. Each in-scope table has the expected SQL column inventory.
-4. Named indexes are present for all 18 tables.
-5. The four SQL CHECK constraints are represented.
-6. Selected critical store types include unsigned integers, decimal precision, DATE, LONGTEXT, and DATETIME(6).
-7. All EF-modeled foreign keys use RESTRICT delete behavior.
+2. None of the 30 excluded SQL tables is mapped.
+3. The EF Core 10 Identity passkey table is not mapped.
+4. Each in-scope table has the expected column inventory.
+5. Named indexes are present for all 18 tables.
+6. The four declared CHECK constraints are represented.
+7. Selected critical store types include unsigned integers, decimal precision, DATE, LONGTEXT, and DATETIME(6).
+8. All EF-modeled foreign keys use RESTRICT delete behavior.
 
-**These tests have not yet been run.** Do not describe the build or tests as passing until the user runs them or an execution environment reports a successful result.
+The tests are committed but **have not yet been executed successfully** in the available environment. The workflow run lookup returned no run for the workflow-creation commit, so no CI result is claimed.
 
 Run from the repository root in PowerShell:
 
 ```powershell
 dotnet restore .\LabTrack.sln
-dotnet build .\LabTrack.sln --no-restore
-dotnet test .\src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj --no-build
+dotnet build .\LabTrack.sln --no-restore --configuration Release
+dotnet test .\src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj --no-build --configuration Release
 ```
 
 The model tests use EF Core InMemory and do not require a database connection.
 
-## Provider and deployment gates
+## Remaining gates
 
-The repository remains on .NET 10 / EF Core 10. The stable Pomelo 9.0.0 release previously evaluated targets EF Core 9.0.x and must not be added to this EF Core 10 graph. Provider activation remains blocked until a stable officially compatible release is reviewed and approved.
-
-The production fail-closed startup guard in `Program.cs` was not changed. The consolidated 48-table SQL installation script was not changed.
+- Successful build and test execution, with failures fixed.
+- Review the EF metadata against all 18 in-scope SQL definitions.
+- Stable official Pomelo support for EF Core 10, then dependency review.
+- Separate authorization before any disposable MariaDB qualification.
+- Separate authorization before changing the production fail-closed startup guard.
 
 ## Safety verification
 
@@ -68,4 +73,4 @@ The production fail-closed startup guard in `Program.cs` was not changed. The co
 - No migration was generated or applied.
 - No production configuration or startup guard was changed.
 - No provider package was installed, removed, or downgraded.
-- The SQL baseline remains the original 48-table installation schema.
+- The consolidated 48-table SQL installation script remains unchanged.
