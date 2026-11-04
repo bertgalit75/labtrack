@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$PublishPath = (Join-Path $PSScriptRoot '..\..\..\..\artifacts\kestrel\publish'))
+param([string]$PublishPath = (Join-Path $PSScriptRoot '..\..\..\artifacts\kestrel\publish'))
 $ErrorActionPreference = 'Stop'
 Write-Host 'Installed .NET runtimes:'
 dotnet --list-runtimes
