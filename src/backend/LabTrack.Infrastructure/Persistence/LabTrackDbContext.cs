@@ -133,7 +133,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
             e.Property(x => x.CityMunicipality).HasColumnType("varchar(100)").HasMaxLength(100);
             e.Property(x => x.Province).HasColumnType("varchar(100)").HasMaxLength(100);
             e.Property(x => x.PostalCode).HasColumnType("varchar(20)").HasMaxLength(20);
-            e.Property(x => x.PatientStatus).HasColumnType("varchar(20)").HasMaxLength(20).HasDefaultValue("Active");
+            e.Property(x => x.PatientStatus).HasColumnType("varchar(20)").HasMaxLength(20).IsRequired().HasDefaultValue("Active");
             e.Property(x => x.CanonicalPatientId).HasColumnType("bigint");
             e.Property(x => x.RegisteredAtUtc).HasColumnType("datetime(6)");
             e.Property(x => x.RegisteredByUserId).HasColumnType("bigint");
@@ -269,7 +269,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
             e.Property(x => x.ExaminationId).HasColumnType("bigint"); e.Property(x => x.TestDefinitionVersionId).HasColumnType("bigint");
             e.Property(x => x.TestInstanceNumber).HasColumnType("smallint unsigned").HasDefaultValue((ushort)1);
             e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).IsRequired().HasDefaultValue("Pending");
-            e.Property(x => x.Priority).HasColumnType("varchar(20)").HasMaxLength(20).HasDefaultValue("Routine");
+            e.Property(x => x.Priority).HasColumnType("varchar(20)").HasMaxLength(20).IsRequired().HasDefaultValue("Routine");
             e.Property(x => x.RequestedAtUtc).HasColumnType("datetime(6)"); e.Property(x => x.RequestedByUserId).HasColumnType("bigint");
             e.Property(x => x.CompletedAtUtc).HasColumnType("datetime(6)"); e.Property(x => x.ActualMethodId).HasColumnType("bigint");
             e.HasIndex(x => new { x.ExaminationId, x.TestDefinitionVersionId, x.TestInstanceNumber }).IsUnique().HasDatabaseName("UX_ExaminationTests_Instance");
