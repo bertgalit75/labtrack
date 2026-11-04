@@ -1,6 +1,7 @@
 using LabTrack.Domain.Entities;
 using LabTrack.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabTrack.Infrastructure.Persistence;
