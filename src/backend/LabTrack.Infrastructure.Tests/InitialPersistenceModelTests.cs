@@ -1,5 +1,6 @@
 using LabTrack.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
 
@@ -24,7 +25,7 @@ public sealed class InitialPersistenceModelTests
             .Options;
 
         using var context = new LabTrackDbContext(options);
-        var actual = context.Model.GetEntityTypes()
+        var actual = context.GetService<IDesignTimeModel>().Model.GetEntityTypes()
             .Select(entity => entity.GetTableName())
             .Where(name => name is not null)
             .Distinct(StringComparer.Ordinal)
@@ -43,7 +44,7 @@ public sealed class InitialPersistenceModelTests
             .Options;
 
         using var context = new LabTrackDbContext(options);
-        var mapped = context.Model.GetEntityTypes()
+        var mapped = context.GetService<IDesignTimeModel>().Model.GetEntityTypes()
             .Select(entity => entity.GetTableName())
             .Where(name => name is not null)
             .ToHashSet(StringComparer.Ordinal);
@@ -61,7 +62,7 @@ public sealed class InitialPersistenceModelTests
             "ReportDistributionEvents", "WorkflowEvents", "NumberingCounters"
         ];
 
-        Assert.Empty(excluded.Where(mapped.Contains));
+        Assert.DoesNotContain(excluded, mapped.Contains);
         Assert.DoesNotContain("AspNetUserPasskeys", mapped);
     }
 
@@ -97,7 +98,7 @@ public sealed class InitialPersistenceModelTests
 
         foreach (var (table, expectedColumns) in expected)
         {
-            var entity = context.Model.GetEntityTypes().Single(x => x.GetTableName() == table);
+            var entity = context.GetService<IDesignTimeModel>().Model.GetEntityTypes().Single(x => x.GetTableName() == table);
             var storeObject = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var actualColumns = entity.GetProperties()
                 .Select(property => property.GetColumnName(storeObject))
@@ -116,7 +117,7 @@ public sealed class InitialPersistenceModelTests
             .Options;
 
         using var context = new LabTrackDbContext(options);
-        var foreignKeys = context.Model.GetEntityTypes()
+        var foreignKeys = context.GetService<IDesignTimeModel>().Model.GetEntityTypes()
             .SelectMany(entity => entity.GetForeignKeys())
             .Where(fk => fk.DeclaringEntityType.GetTableName() is not null);
 
@@ -154,7 +155,7 @@ public sealed class InitialPersistenceModelTests
 
         foreach (var (table, expectedNames) in expected)
         {
-            var entity = context.Model.GetEntityTypes().Single(x => x.GetTableName() == table);
+            var entity = context.GetService<IDesignTimeModel>().Model.GetEntityTypes().Single(x => x.GetTableName() == table);
             var actualNames = entity.GetIndexes()
                 .Select(index => index.GetDatabaseName())
                 .Where(name => name is not null)
@@ -173,7 +174,7 @@ public sealed class InitialPersistenceModelTests
             .Options;
 
         using var context = new LabTrackDbContext(options);
-        var checks = context.Model.GetEntityTypes()
+        var checks = context.GetService<IDesignTimeModel>().Model.GetEntityTypes()
             .SelectMany(entity => entity.GetCheckConstraints())
             .Select(check => check.Name)
             .Order(StringComparer.Ordinal)
@@ -203,10 +204,10 @@ public sealed class InitialPersistenceModelTests
         string propertyName,
         string expectedType)
     {
-        var entity = context.Model.GetEntityTypes().Single(x => x.GetTableName() == table);
+        var entity = context.GetService<IDesignTimeModel>().Model.GetEntityTypes().Single(x => x.GetTableName() == table);
         var property = entity.FindProperty(propertyName);
         Assert.NotNull(property);
-        Assert.Equal(expectedType, property!.GetColumnType());
+        Assert.Equal(expectedType, property!.FindAnnotation("Relational:ColumnType")?.Value as string);
     }
 
 }
