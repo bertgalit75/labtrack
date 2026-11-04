@@ -123,6 +123,7 @@ public sealed class InitialPersistenceModelTests
 
         Assert.All(foreignKeys, foreignKey => Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
     }
+
     [Fact]
     public void Model_contains_the_declared_named_indexes_for_the_18_tables()
     {
@@ -198,6 +199,31 @@ public sealed class InitialPersistenceModelTests
         AssertColumnType(context, "AspNetUsers", "LockoutEnd", "datetime(6)");
     }
 
+    [Fact]
+    public void Microting_provider_builds_the_relational_model_for_mariadb_10_11_without_a_connection()
+    {
+        var options = new DbContextOptionsBuilder<LabTrackDbContext>()
+            .UseMySql(new MariaDbServerVersion(new Version(10, 11, 0)))
+            .Options;
+
+        using var context = new LabTrackDbContext(options);
+        Assert.Equal("Microting.EntityFrameworkCore.MySql", context.Database.ProviderName);
+
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var relationalTables = model.GetRelationalModel().Tables
+            .Select(table => table.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(ExpectedTables.Order(StringComparer.Ordinal), relationalTables);
+        AssertRelationalColumnType(model, "ReferenceIntervals", "AgeMinimumDays", "int unsigned");
+        AssertRelationalColumnType(model, "ExaminationTests", "TestInstanceNumber", "smallint unsigned");
+        AssertRelationalColumnType(model, "TestResultRevisions", "NumericValue", "decimal(18,6)");
+        AssertRelationalColumnType(model, "Patients", "DateOfBirth", "date");
+        AssertRelationalColumnType(model, "AuditLogs", "BeforeData", "longtext");
+        AssertRelationalColumnType(model, "AspNetUsers", "LockoutEnd", "datetime(6)");
+    }
+
     private static void AssertColumnType(
         LabTrackDbContext context,
         string table,
@@ -210,4 +236,15 @@ public sealed class InitialPersistenceModelTests
         Assert.Equal(expectedType, property!.FindAnnotation("Relational:ColumnType")?.Value as string);
     }
 
+    private static void AssertRelationalColumnType(
+        IModel model,
+        string table,
+        string propertyName,
+        string expectedType)
+    {
+        var entity = model.GetEntityTypes().Single(x => x.GetTableName() == table);
+        var property = entity.FindProperty(propertyName);
+        Assert.NotNull(property);
+        Assert.Equal(expectedType, property!.GetColumnType());
+    }
 }
