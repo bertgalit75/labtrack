@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$PublishPath = (Join-Path $PSScriptRoot '..\..\..\..\artifacts\kestrel\publish'))
+param([string]$PublishPath = (Join-Path $PSScriptRoot '..\..\..\artifacts\kestrel\publish'))
 $ErrorActionPreference = 'Stop'
 $required = @('LabTrack.WebApi.exe','LabTrack.WebApi.dll','wwwroot\index.html')
 $missing = @($required | Where-Object { -not (Test-Path (Join-Path $PublishPath $_)) })
