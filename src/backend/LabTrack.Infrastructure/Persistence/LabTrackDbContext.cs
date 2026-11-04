@@ -44,7 +44,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
             b.Property(x => x.PasswordHash).HasColumnType("longtext");
             b.Property(x => x.SecurityStamp).HasColumnType("longtext");
             b.Property(x => x.ConcurrencyStamp).HasColumnType("longtext");
-            b.Property(x => x.PhoneNumber).HasColumnType("longtext");
+            b.Property(x => x.PhoneNumber).HasColumnType("longtext").HasMaxLength(null);
             b.Property(x => x.PhoneNumberConfirmed).HasColumnType("tinyint(1)").HasDefaultValue(false);
             b.Property(x => x.TwoFactorEnabled).HasColumnType("tinyint(1)").HasDefaultValue(false);
             b.Property(x => x.LockoutEnd).HasColumnType("datetime(6)");
