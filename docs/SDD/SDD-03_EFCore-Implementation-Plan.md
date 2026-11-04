@@ -1,6 +1,6 @@
 # SDD-03 EF Core Implementation Plan
 
-**Status:** Initial 18-table EF model and metadata tests committed; provider compatibility candidate now under isolated qualification  
+**Status:** Initial 18-table EF model and metadata tests committed; Microting EF Core 10 provider statically qualified; MariaDB runtime qualification remains open  
 **Target framework:** .NET 10 / EF Core 10  
 **Database target:** MariaDB 10.11.x  
 **Provider direction:** Microting-maintained EF Core 10 fork of Pomelo, qualification candidate only  
@@ -36,7 +36,7 @@ The official `Pomelo.EntityFrameworkCore.MySql` 9.0.0 release targets EF Core 9.
 
 The current qualification candidate is the stable `Microting.EntityFrameworkCore.MySql` 10.0.14 package, a company-maintained fork of Pomelo. Its published package targets `net10.0`, requires `Microsoft.EntityFrameworkCore.Relational >= 10.0.14` and `MySqlConnector >= 2.6.2`, and documents MariaDB 10.11 LTS among its tested server lines. The fork renamed its package, assembly, and provider namespaces from Pomelo to Microting; its `UseMySql` extension remains in `Microsoft.EntityFrameworkCore`. This is not the official Pomelo package, and qualification must confirm its exact behavior before adoption.
 
-The qualification branch aligns the EF Core, Identity EF Core, and InMemory package references to 10.0.14 and adds a provider-model test configured for MariaDB 10.11.0 metadata. The test supplies no connection string and does not open a connection. It verifies provider identity, the 18-table relational model, and critical relational store types.
+The qualification branch aligns the EF Core, Identity EF Core, and InMemory package references to 10.0.14 and adds a provider-model test configured for MariaDB 10.11.0 metadata. The test supplies no connection string and does not open a connection. It verifies provider identity, the 18-table relational model, and critical relational store types. The user confirmed a clean working tree, package resolution at 10.0.14, a successful .NET 10 Release solution build, and 7/7 passing tests. GitHub Actions run 41804193323 also completed successfully. These results establish static model/provider compatibility only; they do not establish runtime database behavior or complete SQL-baseline equivalence.
 
 ## 4. Implemented repository changes
 
@@ -55,14 +55,22 @@ On base commit `3cbac6f`, the user confirmed:
 - `dotnet test .\LabTrack.sln`: passed, 6 tests, 0 failures.
 - GitHub Actions run `41802561391` (Backend model verification): passed.
 
-The new Microting provider qualification branch has not yet been built or tested. Its CI run must pass before the candidate can be considered statically qualified.
+On qualification commit `b45f942322114dd566f63ca16babe4731ef3ae81`, the user confirmed:
+
+- `dotnet restore .\\LabTrack.sln`: passed.
+- `dotnet build .\\LabTrack.sln --no-restore --configuration Release`: passed.
+- `dotnet test .\\LabTrack.sln --no-build --configuration Release`: passed, 7 tests, 0 failures.
+- GitHub Actions run `41804193323` (Backend model verification): passed.
+- Local working tree was clean and all four top-level EF/Identity/provider packages resolved to 10.0.14.
+
+Static provider qualification is complete for model construction using MariaDB 10.11.0 metadata. Runtime database behavior and full SQL-baseline equivalence are not yet qualified.
 
 ## 6. Remaining qualification sequence
 
-1. Build and run all tests on `qualify/microting-efcore10-mariadb1011`; resolve every failure without relaxing dependency diagnostics.
-2. Review the generated relational model and compare the 18 in-scope table definitions, including indexes, check constraints, unsigned types, identity key generation, and FK behavior, against the unchanged SQL baseline.
-3. Confirm the exact installed MariaDB 10.11 patch and qualify against a newly created disposable MariaDB 10.11 database only after separate explicit authorization.
-4. Never use production or the user's existing local database for qualification. Do not apply migrations.
-5. Request a separate explicit approval before changing the startup guard to enable MariaDB.
+1. Complete a static, table-by-table comparison of the provider relational model against the unchanged `database/LabTrack_Consolidated_Install.sql` baseline, covering columns, nullability, defaults, primary/unique/secondary indexes, CHECK constraints, identity key generation, and FK behavior. Record any intentional differences and resolve unintended mismatches.
+2. Confirm the exact MariaDB 10.11 patch version intended for qualification.
+3. Only after separate explicit authorization, run a narrowly scoped integration qualification against a newly created disposable MariaDB database/instance. Do not use production or the user's existing local database. Do not apply migrations or change schema; test only explicitly approved non-destructive operations and metadata behavior.
+4. Review the results and obtain explicit approval before changing the startup guard to enable MariaDB.
+5. Keep the qualification PR unmerged until static comparison, authorized runtime qualification, and review gates are complete.
 
 Until those gates are passed: no MariaDB connection, no migrations, no schema execution, and no production activation.
