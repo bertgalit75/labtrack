@@ -62,6 +62,7 @@ public sealed class InitialPersistenceModelTests
         ];
 
         Assert.Empty(excluded.Where(mapped.Contains));
+        Assert.DoesNotContain("AspNetUserPasskeys", mapped);
     }
 
     [Fact]
