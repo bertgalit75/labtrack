@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseWindowsService();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddAntiforgery(options =>
@@ -65,10 +66,31 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAuthorization();
 var app = builder.Build();
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
+app.MapFallback(async context =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    var indexPath = Path.Combine(webRoot, "index.html");
+    if (!File.Exists(indexPath))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    context.Response.ContentType = "text/html";
+    await context.Response.SendFileAsync(indexPath);
+});
 app.Run();
