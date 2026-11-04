@@ -121,4 +121,91 @@ public sealed class InitialPersistenceModelTests
 
         Assert.All(foreignKeys, foreignKey => Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
     }
+    [Fact]
+    public void Model_contains_the_declared_named_indexes_for_the_18_tables()
+    {
+        var options = new DbContextOptionsBuilder<LabTrackDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        using var context = new LabTrackDbContext(options);
+        var expected = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["AspNetRoles"] = ["UX_AspNetRoles_NormalizedName"],
+            ["AspNetUsers"] = ["UX_AspNetUsers_NormalizedUserName", "IX_AspNetUsers_NormalizedEmail"],
+            ["AspNetRoleClaims"] = ["IX_AspNetRoleClaims_RoleId"],
+            ["AspNetUserClaims"] = ["IX_AspNetUserClaims_UserId"],
+            ["AspNetUserLogins"] = ["IX_AspNetUserLogins_UserId"],
+            ["AspNetUserRoles"] = ["IX_AspNetUserRoles_RoleId"],
+            ["AspNetUserTokens"] = [],
+            ["Patients"] = ["UX_Patients_PatientNumber", "IX_Patients_NameDob", "IX_Patients_Canonical"],
+            ["TestDefinitions"] = ["UX_TestDefinitions_Code", "IX_TestDefinitions_CategoryActive"],
+            ["TestDefinitionVersions"] = ["UX_TestDefinitionVersions_Number", "IX_TestDefinitionVersions_StatusEffective"],
+            ["TestParameterDefinitions"] = ["UX_TestParameterDefinitions_Code", "IX_TestParameterDefinitions_Unit"],
+            ["ReferenceIntervals"] = ["IX_ReferenceIntervals_Selection", "IX_ReferenceIntervals_Method", "IX_ReferenceIntervals_Unit"],
+            ["ResultValueOptions"] = ["UX_ResultValueOptions_Code"],
+            ["Examinations"] = ["UX_Examinations_Number", "IX_Examinations_PatientDate", "IX_Examinations_StatusDate", "IX_Examinations_PriorityDate"],
+            ["ExaminationTests"] = ["UX_ExaminationTests_Instance", "IX_ExaminationTests_Status", "IX_ExaminationTests_Version", "IX_ExaminationTests_Method"],
+            ["TestResults"] = ["UX_TestResults_TestParameter", "IX_TestResults_CurrentRevision"],
+            ["TestResultRevisions"] = ["UX_TestResultRevisions_Number", "IX_TestResultRevisions_StatusDate", "IX_TestResultRevisions_Option", "IX_TestResultRevisions_Unit", "IX_TestResultRevisions_Reference"],
+            ["AuditLogs"] = ["IX_AuditLogs_ActorTime", "IX_AuditLogs_EntityTime", "IX_AuditLogs_ActionTime", "IX_AuditLogs_Correlation"]
+        };
+
+        foreach (var (table, expectedNames) in expected)
+        {
+            var entity = context.Model.GetEntityTypes().Single(x => x.GetTableName() == table);
+            var actualNames = entity.GetIndexes()
+                .Select(index => index.GetDatabaseName())
+                .Where(name => name is not null)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(expectedNames.Order(StringComparer.Ordinal), actualNames);
+        }
+    }
+
+    [Fact]
+    public void Model_contains_the_declared_check_constraints_and_critical_store_types()
+    {
+        var options = new DbContextOptionsBuilder<LabTrackDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        using var context = new LabTrackDbContext(options);
+        var checks = context.Model.GetEntityTypes()
+            .SelectMany(entity => entity.GetCheckConstraints())
+            .Select(check => check.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            new[]
+            {
+                "CK_ReferenceIntervals_Age",
+                "CK_ReferenceIntervals_Limits",
+                "CK_TestParameterDefinitions_ValueType",
+                "CK_TestResultRevisions_ValueType"
+            },
+            checks);
+
+        AssertColumnType(context, "ReferenceIntervals", "AgeMinimumDays", "int unsigned");
+        AssertColumnType(context, "ExaminationTests", "TestInstanceNumber", "smallint unsigned");
+        AssertColumnType(context, "TestResultRevisions", "NumericValue", "decimal(18,6)");
+        AssertColumnType(context, "Patients", "DateOfBirth", "date");
+        AssertColumnType(context, "AuditLogs", "BeforeData", "longtext");
+        AssertColumnType(context, "AspNetUsers", "LockoutEnd", "datetime(6)");
+    }
+
+    private static void AssertColumnType(
+        LabTrackDbContext context,
+        string table,
+        string propertyName,
+        string expectedType)
+    {
+        var entity = context.Model.GetEntityTypes().Single(x => x.GetTableName() == table);
+        var property = entity.FindProperty(propertyName);
+        Assert.NotNull(property);
+        Assert.Equal(expectedType, property!.GetColumnType());
+    }
+
 }
