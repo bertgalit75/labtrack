@@ -1,6 +1,6 @@
 # SDD-03 EF Core Implementation Plan
 
-**Status:** Initial 18-table application persistence scope approved; provider activation and model qualification remain blocked  
+**Status:** 18-table EF model and static metadata tests implemented; execution and MariaDB provider qualification pending  
 **Target framework:** .NET 10 / EF Core 10  
 **Database target:** MariaDB 10.11.x  
 **Provider direction:** Pomelo, pending a stable EF Core 10-compatible release  
@@ -8,93 +8,58 @@
 
 ## 1. Approved initial persistence scope
 
-Per **SDD-03-ADR-001**, the initial application persistence model is intentionally limited to exactly 18 tables:
+Per **SDD-03-ADR-001**, the initial EF application model maps exactly 18 tables:
 
 - **Seven ASP.NET Core Identity tables:** `AspNetRoles`, `AspNetUsers`, `AspNetRoleClaims`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserRoles`, and `AspNetUserTokens`.
 - **Eleven application tables:** `Patients`, `TestDefinitions`, `TestDefinitionVersions`, `TestParameterDefinitions`, `ReferenceIntervals`, `ResultValueOptions`, `Examinations`, `ExaminationTests`, `TestResults`, `TestResultRevisions`, and `AuditLogs`.
 
-The other 30 tables in the 48-table SQL installation baseline are intentionally outside this initial EF Core application model. Their exclusion is a scope decision, not an implementation defect. Do not scaffold entities, add DbSets, or create placeholder mappings for those 30 tables as part of this phase. Reconsideration requires a future approved SDD change.
+The other 30 tables in the 48-table SQL installation baseline are intentionally outside the initial EF application model. Their exclusion is not an implementation defect. Do not scaffold entities, add DbSets, or create placeholder mappings for them in this phase.
 
-**Important distinction:** the SQL installation baseline remains intact and continues to define the database installation schema. This decision does not delete, rename, or alter any of its 48 tables, columns, constraints, indexes, or seed data. The 18-table application model is a deliberately narrower view of that schema, not a claim that the physical database contains only 18 tables.
+**The SQL installation baseline remains unchanged.** This is a narrower EF application model over the existing 48-table installation schema; it does not reduce the physical database to 18 tables.
 
-## 2. Scope and safety boundary
+## 2. Important boundary: foreign keys to excluded principals
 
-This plan authorizes repository-side model and configuration work for the 18 in-scope tables against the approved SDD-03 dictionary and `database/LabTrack_Consolidated_Install.sql`. It does not authorize connecting to any database, executing SQL, applying or generating migrations, changing database contents, or enabling production startup.
+Some in-scope SQL tables reference principals that are intentionally excluded from the EF model, including `TestCategories`, `TestMethods`, and `Units`. The in-scope dependent columns are mapped as scalar properties (for example `TestCategoryId`, `DefaultMethodId`, `UnitId`, and `ActualMethodId`), but EF does not create relationships to entity types that are deliberately outside the 18-table allowlist.
 
-The existing `Program.cs` startup guard is a required safety control. Keep the only active persistence mode as `DevelopmentInMemory` for Development. All other environments must continue to fail closed until provider and model qualification gates are passed and a separate explicit approval authorizes activation.
+Those foreign-key constraints remain defined in the unchanged consolidated SQL installation baseline and remain database-enforced. This is an explicit scope trade-off, not a request to remove those constraints. EF relationships are configured for foreign keys whose principal and dependent tables are both within the 18-table scope.
 
-## 3. Compatibility decision: .NET 10 retained
+## 3. Safety and compatibility boundary
 
-The repository currently targets `net10.0` and uses EF Core / Identity EF Core 10.0.0. The stable Pomelo 9.0.0 release previously evaluated targets EF Core 9.0.x and must not be added to this EF Core 10 dependency graph.
+Repository-side model and test work does not authorize a database connection, SQL execution, migration generation/application, database-content changes, or production startup activation.
 
-**Implementation rule:** retain .NET 10 and EF Core 10. Do not add an incompatible stable Pomelo package, a preview/nightly package, or an unreviewed third-party fork. Re-check the official Pomelo release and compatibility matrix before adding the provider. Until a stable compatible release is available and approved, MariaDB provider activation remains blocked and the startup guard stays in force.
+The existing `Program.cs` guard remains unchanged: only Development with `Persistence:Mode=DevelopmentInMemory` is permitted. All other modes fail closed.
 
-## 4. Approved sources of truth
+The repository retains `net10.0` and EF Core / Identity EF Core 10.0.0. The stable Pomelo 9.0.0 release previously evaluated targets EF Core 9.0.x and must not be added to this EF Core 10 dependency graph. Do not downgrade EF Core, suppress dependency diagnostics, or use unapproved preview/nightly packages. Provider activation remains blocked until a stable compatible provider is reviewed and approved.
 
-Reconcile the 18 in-scope EF entities only against:
+## 4. Implemented repository changes
 
-1. `docs/SDD/SDD-03_Data-Dictionary-and-Database-Constraints.md`
-2. `database/LabTrack_Consolidated_Install.sql`
-3. Approved architecture and identity decisions in SDD-01 / SDD-02.
+- Completed missing SQL-backed entity properties for Patients, test catalog entities, examination/result entities, audit records, and the custom Identity user timestamp.
+- Replaced the scaffold mapping in `LabTrackDbContext` with explicit Fluent API mappings for all 18 approved tables.
+- Configured table and column names/types, lengths, date/time precision, decimal precision, unsigned numeric types, defaults, nullability, keys, named indexes, in-scope foreign keys with RESTRICT delete behavior, and four declared CHECK constraints.
+- Added `LabTrack.Infrastructure.Tests` to the solution.
+- Added model tests for the exact 18-table allowlist, excluded-table absence, all 18 column inventories, named indexes, CHECK constraints, selected critical store types, and RESTRICT behavior of EF-modeled foreign keys.
 
-Preserve the SQL baseline exactly. Do not “correct” or simplify the installation SQL to match the smaller application model. For each of the 18 mapped tables, preserve declared names, nullability, lengths, decimal precision/scale, defaults, UTC datetime precision, keys, indexes, foreign keys, delete restrictions, and CHECK expressions where applicable.
+The model uses scalar FK properties, not EF relationships, for the SQL constraints whose principal tables are excluded by ADR-001. The SQL baseline remains authoritative for those database-level constraints.
 
-The 30 out-of-scope tables are not part of the initial application-model completeness gate. They remain in the installation baseline and are not to be mapped in this phase.
+## 5. Verification status
 
-## 5. Implementation sequence
+The test project has been committed but **has not yet been executed** in this environment. Static repository edits are not equivalent to a successful build or passing test run. Run the solution build and test suite locally before treating the model as qualified:
 
-### Phase A — Compatibility and dependency gate
-- Keep all current .NET 10 / EF Core 10 package versions aligned.
-- Track official Pomelo EF Core 10 compatibility.
-- Do not add Pomelo 9.0.0 to the EF Core 10 graph, downgrade EF Core, suppress dependency diagnostics, or use preview/nightly packages.
-- Add a provider only after a stable compatible release is reviewed and approved.
+```powershell
+dotnet restore .\LabTrack.sln
+dotnet build .\LabTrack.sln --no-restore
+dotnet test .\src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj --no-build
+```
 
-### Phase B — Reconcile the 18 in-scope tables
-- Map exactly the seven Identity tables and eleven application tables listed in Section 1.
-- Complete the entity properties and navigation relationships required by the SQL definitions for those 18 tables.
-- Configure Identity table names, custom `BIGINT` keys, exact column lengths, normalized-name indexes, and custom user fields including `IsActive` and `DeactivatedAtUtc`.
-- Do not add the other 30 SQL tables to the EF model.
-- Do not use placeholder entities or shadow properties to conceal missing domain design.
+These commands build the EF model using the InMemory provider; they do not connect to MariaDB or apply migrations. If compilation or assertions fail, correct those failures before proceeding.
 
-### Phase C — Fluent mapping and constraints
-- Use focused `IEntityTypeConfiguration<T>` classes grouped by domain area.
-- Reconcile SQL column types and EF CLR types, including `DATE`, `DATETIME(6)`, `DECIMAL(p,s)`, unsigned integers, nullable values, and LONGTEXT/JSON text.
-- Reproduce the declared primary keys, composite keys, unique constraints, secondary indexes, foreign keys, delete behaviors, and CHECK constraints for the 18 in-scope tables.
-- Treat self-references and deferred foreign keys explicitly where they occur within the in-scope model.
-- Do not invent cascade deletes; preserve the SQL-defined delete behavior.
+## 6. Remaining qualification sequence
 
-### Phase D — Static model verification
-- Add automated tests that build the EF model without opening a database connection.
-- Assert that the model contains exactly the 18 approved table mappings: the seven Identity tables and eleven application tables.
-- Assert that none of the 30 excluded tables is accidentally mapped.
-- For the 18 mapped tables, verify column names/types/nullability/lengths/precision/defaults, key and index names, foreign-key targets/delete behavior, and CHECK SQL against the approved baseline.
-- Treat an accidental mapping outside the 18-table allowlist as a test failure. Do not treat the 30 intentionally excluded SQL tables as missing-model defects.
-- Keep tests independent of migrations and database availability.
+1. Run the solution build and model tests above; review all failures.
+2. Reconcile any differences between the model metadata and the 18 SQL table definitions.
+3. Re-check official Pomelo release compatibility with EF Core 10. Do not install an incompatible version.
+4. Only after separate explicit authorization, qualify provider behavior against a newly created disposable MariaDB 10.11 database populated with synthetic data.
+5. Never use production or the user's existing local database for qualification. Do not apply migrations.
+6. Request a separate explicit approval before changing the startup guard to enable MariaDB.
 
-### Phase E — Disposable MariaDB qualification (separate authorization required)
-- Use only a newly created, disposable MariaDB 10.11 test instance/database with synthetic data.
-- Verify provider initialization, generated SQL, type mappings, constraints, transactions, and Identity store behavior for the approved 18-table application scope.
-- Never point tests at the existing local MariaDB instance, staging data, or production.
-- Do not apply migrations. Any schema provisioning must use a reviewed disposable-test procedure and separate explicit authorization.
-- Record evidence and close discrepancies before requesting approval to enable MariaDB startup.
-
-## 6. Current repository baseline
-
-- `LabTrack.Infrastructure` targets `net10.0` and references EF Core 10.0.0, Identity EF Core 10.0.0, and EF Core InMemory 10.0.0.
-- `LabTrackDbContext` currently exposes eleven application DbSets, with seven Identity entity types inherited from `IdentityDbContext`.
-- The current entity model is still partial even within the approved 18-table scope; see `SDD-03_EF-Model-Reconciliation-Report.md`.
-- `Program.cs` registers InMemory only for Development + `Persistence:Mode=DevelopmentInMemory`, and fails closed for every other mode. Preserve this behavior.
-- Windows Service / Kestrel hosting is independent of provider qualification.
-
-## 7. Exit criteria
-
-The initial EF application model is ready for provider qualification only when:
-
-- The EF model contains exactly the 18 approved table mappings and no mapping for the 30 excluded tables.
-- Every column, key, unique constraint, index, foreign key, delete behavior, and CHECK constraint applicable to those 18 tables is reconciled with the unchanged SQL baseline.
-- Automated EF metadata tests pass.
-- A stable provider officially compatible with EF Core 10 is selected and dependency restore is clean.
-- Disposable MariaDB 10.11 qualification passes with synthetic data after separate authorization.
-- A separate approval explicitly authorizes changing startup configuration.
-
-Until then: no MariaDB connection, no migrations, no schema execution, and no production activation.
+Until those gates are passed: no MariaDB connection, no migrations, no schema execution, and no production activation.
