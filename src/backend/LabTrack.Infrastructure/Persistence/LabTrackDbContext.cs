@@ -249,8 +249,8 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
             e.Property(x => x.ExaminationNumber).HasColumnType("varchar(40)").HasMaxLength(40).IsRequired();
             e.Property(x => x.PatientId).HasColumnType("bigint");
             e.Property(x => x.ExaminationDate).HasColumnType("date");
-            e.Property(x => x.Priority).HasColumnType("varchar(20)").HasMaxLength(20).HasDefaultValue("Routine");
-            e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).HasDefaultValue("Registered");
+            e.Property(x => x.Priority).HasColumnType("varchar(20)").HasMaxLength(20).IsRequired().HasDefaultValue("Routine");
+            e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).IsRequired().HasDefaultValue("Registered");
             e.Property(x => x.Notes).HasColumnType("varchar(2000)").HasMaxLength(2000);
             e.Property(x => x.CreatedAtUtc).HasColumnType("datetime(6)"); e.Property(x => x.CreatedByUserId).HasColumnType("bigint");
             e.Property(x => x.RowVersion).HasColumnType("bigint").HasDefaultValue(1L);
@@ -268,7 +268,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
             e.Property(x => x.ExaminationTestId).HasColumnType("bigint").ValueGeneratedOnAdd();
             e.Property(x => x.ExaminationId).HasColumnType("bigint"); e.Property(x => x.TestDefinitionVersionId).HasColumnType("bigint");
             e.Property(x => x.TestInstanceNumber).HasColumnType("smallint unsigned").HasDefaultValue((ushort)1);
-            e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).HasDefaultValue("Pending");
+            e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).IsRequired().HasDefaultValue("Pending");
             e.Property(x => x.Priority).HasColumnType("varchar(20)").HasMaxLength(20).HasDefaultValue("Routine");
             e.Property(x => x.RequestedAtUtc).HasColumnType("datetime(6)"); e.Property(x => x.RequestedByUserId).HasColumnType("bigint");
             e.Property(x => x.CompletedAtUtc).HasColumnType("datetime(6)"); e.Property(x => x.ActualMethodId).HasColumnType("bigint");
@@ -312,7 +312,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
             e.Property(x => x.IsAbnormal).HasColumnType("tinyint(1)").HasDefaultValue(false);
             e.Property(x => x.IsCritical).HasColumnType("tinyint(1)").HasDefaultValue(false);
             e.Property(x => x.Interpretation).HasColumnType("varchar(2000)").HasMaxLength(2000);
-            e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).HasDefaultValue("Draft");
+            e.Property(x => x.Status).HasColumnType("varchar(30)").HasMaxLength(30).IsRequired().HasDefaultValue("Draft");
             e.Property(x => x.RevisionReason).HasColumnType("varchar(1000)").HasMaxLength(1000);
             e.Property(x => x.CreatedAtUtc).HasColumnType("datetime(6)"); e.Property(x => x.CreatedByUserId).HasColumnType("bigint");
             e.HasIndex(x => new { x.TestResultId, x.RevisionNumber }).IsUnique().HasDatabaseName("UX_TestResultRevisions_Number");
