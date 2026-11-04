@@ -63,7 +63,7 @@ On qualification commit `b45f942322114dd566f63ca16babe4731ef3ae81`, the user con
 - GitHub Actions run `41804193323` (Backend model verification): passed.
 - Local working tree was clean and all four top-level EF/Identity/provider packages resolved to 10.0.14.
 
-Static provider qualification is complete for model construction using MariaDB 10.11.0 metadata. Runtime database behavior and full SQL-baseline equivalence are not yet qualified.
+Static provider qualification is complete for model construction using MariaDB 10.11.0 metadata. A static comparison of the 18 approved model column-name inventories against `database/LabTrack_Consolidated_Install.sql` found exact column-name set matches for all 18 tables (the SQL source contains 48 tables total). This check does not compare every SQL type, nullability, default, index, key, constraint, collation, or runtime behavior; those remain open. The user identified the intended disposable runtime target as MariaDB 10.11.6.0 and explicitly approved a connection only to a newly created disposable database. No endpoint/credentials or disposable instance have been supplied or provisioned in this workflow yet, so no connection has been made.
 
 ## 6. Remaining qualification sequence
 
