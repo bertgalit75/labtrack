@@ -105,6 +105,7 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
             a.PatientId == p.PatientId && a.UserId == actorUserId && a.IsActive &&
             a.EffectiveFromUtc <= now && (a.EffectiveToUtc == null || a.EffectiveToUtc > now) &&
             db.Examinations.Any(e => e.ExaminationId == a.ExaminationId && e.PatientId == p.PatientId) &&
+            db.Departments.Any(d => d.DepartmentId == a.DepartmentId && d.IsActive) &&
             db.UserDepartmentMemberships.Any(m => m.UserId == actorUserId && m.DepartmentId == a.DepartmentId &&
                 m.IsActive && m.EffectiveFromUtc <= now && (m.EffectiveToUtc == null || m.EffectiveToUtc > now))));
     }
