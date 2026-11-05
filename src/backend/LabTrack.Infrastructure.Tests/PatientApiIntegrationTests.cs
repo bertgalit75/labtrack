@@ -50,7 +50,7 @@ public sealed class PatientApiIntegrationTests
             firstName = "Ana",
             lastName = "Reyes"
         });
-        Assert.True(missingCsrf.StatusCode == HttpStatusCode.BadRequest, $"Expected 400 for missing antiforgery token, got {(int)missingCsrf.StatusCode}: {await missingCsrf.Content.ReadAsStringAsync()}");
+        Assert.Equal(HttpStatusCode.BadRequest, missingCsrf.StatusCode);
 
         var (cookie, token) = await GetAntiforgeryAsync(client);
         using var register = new HttpRequestMessage(HttpMethod.Post, "/api/v1/patients")
