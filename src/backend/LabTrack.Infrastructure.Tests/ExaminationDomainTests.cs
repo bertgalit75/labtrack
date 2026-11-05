@@ -344,4 +344,109 @@ public sealed class ExaminationDomainTests
             10, 1, "Titer", 34, titerValue: "   "));
     }
 
+
+    [Fact]
+    public void Test_catalog_definition_creation_normalizes_fields_and_sets_active_timestamp()
+    {
+        var before = DateTime.UtcNow;
+        var entity = new TestDefinition(3, " CBC ", " Complete Blood Count ", " Basic panel ");
+        Assert.Equal(3, entity.TestCategoryId);
+        Assert.Equal("CBC", entity.TestCode);
+        Assert.Equal("Complete Blood Count", entity.TestName);
+        Assert.Equal("Basic panel", entity.Description);
+        Assert.True(entity.IsActive);
+        Assert.Equal(DateTimeKind.Utc, entity.CreatedAtUtc.Kind);
+        Assert.InRange(entity.CreatedAtUtc, before, DateTime.UtcNow);
+    }
+
+    [Fact]
+    public void Test_catalog_definition_rejects_invalid_ids_and_lengths()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestDefinition(0, "CBC", "CBC"));
+        Assert.Throws<ArgumentException>(() => new TestDefinition(1, " ", "CBC"));
+        Assert.Throws<ArgumentException>(() => new TestDefinition(1, new string('C', 51), "CBC"));
+        Assert.Throws<ArgumentException>(() => new TestDefinition(1, "CBC", new string('N', 181)));
+    }
+
+    [Fact]
+    public void Test_definition_version_starts_as_draft_and_validates_dates_and_ids()
+    {
+        var version = new TestDefinitionVersion(5, 2, 8, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), 9, " Instructions ");
+        Assert.Equal(5, version.TestDefinitionId);
+        Assert.Equal(2, version.VersionNumber);
+        Assert.Equal("Draft", version.VersionStatus);
+        Assert.Equal(8, version.CreatedByUserId);
+        Assert.Equal("Instructions", version.Instructions);
+        Assert.Null(version.PublishedAtUtc);
+        Assert.Null(version.PublishedByUserId);
+        Assert.Equal(DateTimeKind.Utc, version.CreatedAtUtc.Kind);
+        Assert.Throws<ArgumentException>(() => new TestDefinitionVersion(5, 1, 8,
+            new DateOnly(2026, 12, 31), new DateOnly(2026, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestDefinitionVersion(0, 1, 8));
+    }
+
+    [Fact]
+    public void Test_parameter_definition_validates_value_type_and_required_fields()
+    {
+        var parameter = new TestParameterDefinition(4, " HGB ", " Hemoglobin ", " Numeric ", 7, 2, false, 3);
+        Assert.Equal("HGB", parameter.ParameterCode);
+        Assert.Equal("Hemoglobin", parameter.ParameterName);
+        Assert.Equal("Numeric", parameter.ValueType);
+        Assert.Equal((byte)2, parameter.DecimalPlaces);
+        Assert.False(parameter.IsRequired);
+        Assert.Equal(3, parameter.DisplayOrder);
+        Assert.True(parameter.IsActive);
+        Assert.Throws<ArgumentException>(() => new TestParameterDefinition(4, "HGB", "Hemoglobin", "Other"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestParameterDefinition(4, "HGB", "Hemoglobin", "Numeric", 0));
+    }
+
+    [Fact]
+    public void Reference_interval_enforces_database_ordering_and_precision_constraints()
+    {
+        var interval = new ReferenceInterval(4, ageMinimumDays: 10, ageMaximumDays: 20,
+            lowerLimit: 1.123456m, upperLimit: 9.5m, referenceText: " Normal ", unitId: 2,
+            effectiveFrom: new DateOnly(2026, 1, 1), effectiveTo: new DateOnly(2026, 12, 31));
+        Assert.Equal(4, interval.TestParameterDefinitionId);
+        Assert.Equal("Normal", interval.ReferenceText);
+        Assert.Equal(1.123456m, interval.LowerLimit);
+        Assert.Throws<ArgumentException>(() => new ReferenceInterval(4, ageMinimumDays: 20, ageMaximumDays: 10));
+        Assert.Throws<ArgumentException>(() => new ReferenceInterval(4, lowerLimit: 10m, upperLimit: 1m));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ReferenceInterval(4, lowerLimit: 1.1234567m));
+    }
+
+    [Fact]
+    public void Result_value_option_validates_required_fields_and_sets_defaults()
+    {
+        var option = new ResultValueOption(4, " POS ", " Positive ", 2, true);
+        Assert.Equal(4, option.TestParameterDefinitionId);
+        Assert.Equal("POS", option.OptionCode);
+        Assert.Equal("Positive", option.OptionLabel);
+        Assert.Equal(2, option.DisplayOrder);
+        Assert.True(option.IsAbnormal);
+        Assert.True(option.IsActive);
+        Assert.Throws<ArgumentException>(() => new ResultValueOption(4, " ", "Positive"));
+    }
+
+    [Fact]
+    public void Audit_log_creation_normalizes_fields_and_sets_utc_timestamp()
+    {
+        var before = DateTime.UtcNow;
+        var audit = new AuditLog(" UPDATE ", " Patient ", 12, 34, " Changed ", " Correction ",
+            "{\"old\":1}", "{\"new\":2}", "127.0.0.1", " test-agent ", " corr-1 ");
+        Assert.Equal("UPDATE", audit.ActionType);
+        Assert.Equal("Patient", audit.EntityType);
+        Assert.Equal(12, audit.ActorUserId);
+        Assert.Equal(34, audit.EntityId);
+        Assert.Equal("Correction", audit.Reason);
+        Assert.Equal("{\"old\":1}", audit.BeforeData);
+        Assert.Equal("{\"new\":2}", audit.AfterData);
+        Assert.Equal("test-agent", audit.UserAgent);
+        Assert.Equal("corr-1", audit.CorrelationId);
+        Assert.Equal(DateTimeKind.Utc, audit.OccurredAtUtc.Kind);
+        Assert.InRange(audit.OccurredAtUtc, before, DateTime.UtcNow);
+        Assert.Throws<ArgumentException>(() => new AuditLog(" ", "Patient"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new AuditLog("UPDATE", "Patient", actorUserId: 0));
+        Assert.Throws<ArgumentException>(() => new AuditLog("UPDATE", "Patient", description: new string('D', 2001)));
+    }
+
 }
