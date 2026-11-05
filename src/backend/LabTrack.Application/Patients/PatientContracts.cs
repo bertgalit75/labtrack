@@ -10,7 +10,7 @@ public sealed record PatientDto(
     string PatientStatus, string? CanonicalPatientId, DateTime RegisteredAtUtc,
     string? UpdatedAtUtc, string ETag);
 
-public sealed record PatientListItemDto(
+public sealed record PatientRegistrationReceipt(string Id, string PatientNumber, string ETag);\n\npublic sealed record PatientReadSummaryDto(string Id, string PatientNumber, string FirstName, string? MiddleName, string LastName, string PatientStatus, string ETag);\n\npublic sealed record PatientListItemDto(
     string Id, string PatientNumber, string FirstName, string? MiddleName, string LastName,
     DateOnly? DateOfBirth, string? SexAtRegistration, string PatientStatus, string ETag);
 
