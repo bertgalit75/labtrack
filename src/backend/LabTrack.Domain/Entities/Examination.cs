@@ -359,4 +359,34 @@ public sealed class AuditLog
     public string? CorrelationId { get; private set; }
     public DateTime OccurredAtUtc { get; private set; }
     private AuditLog() { }
+
+    /// <summary>Creates an audit record. Callers must redact/minimize payloads and persist it atomically with the business operation.</summary>
+    public AuditLog(string actionType, string entityType, long? actorUserId = null, long? entityId = null,
+        string? description = null, string? reason = null, string? beforeData = null, string? afterData = null,
+        string? ipAddress = null, string? userAgent = null, string? correlationId = null)
+    {
+        if (string.IsNullOrWhiteSpace(actionType)) throw new ArgumentException("Action type is required.", nameof(actionType));
+        if (string.IsNullOrWhiteSpace(entityType)) throw new ArgumentException("Entity type is required.", nameof(entityType));
+        if (actorUserId is <= 0) throw new ArgumentOutOfRangeException(nameof(actorUserId));
+        if (entityId is <= 0) throw new ArgumentOutOfRangeException(nameof(entityId));
+        ActionType = Limit(actionType, 100, nameof(actionType))!;
+        EntityType = Limit(entityType, 100, nameof(entityType))!;
+        Description = Limit(description, 2000, nameof(description));
+        Reason = Limit(reason, 1000, nameof(reason));
+        IpAddress = Limit(ipAddress, 45, nameof(ipAddress));
+        UserAgent = Limit(userAgent, 500, nameof(userAgent));
+        CorrelationId = Limit(correlationId, 100, nameof(correlationId));
+        ActorUserId = actorUserId;
+        EntityId = entityId;
+        BeforeData = beforeData;
+        AfterData = afterData;
+        OccurredAtUtc = DateTime.UtcNow;
+    }
+
+    private static string? Limit(string? value, int maxLength, string parameterName)
+    {
+        var normalized = value?.Trim();
+        if (normalized?.Length > maxLength) throw new ArgumentException($"Value cannot exceed {maxLength} characters.", parameterName);
+        return normalized;
+    }
 }
