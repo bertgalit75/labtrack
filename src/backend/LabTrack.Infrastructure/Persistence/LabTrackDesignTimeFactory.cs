@@ -7,8 +7,19 @@ public sealed class LabTrackDesignTimeFactory
 {
     public LabTrackDbContext CreateDbContext(string[] args)
     {
+        var connectionString =
+            Environment.GetEnvironmentVariable("LABTRACK_MARIADB_CONNECTION_STRING");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "LABTRACK_MARIADB_CONNECTION_STRING is not configured.");
+        }
+
         var options = new DbContextOptionsBuilder<LabTrackDbContext>()
-            .UseMySql(new MariaDbServerVersion(new Version(10, 11, 0)))
+            .UseMySql(
+                connectionString,
+                new MariaDbServerVersion(new Version(10, 11, 6)))
             .Options;
 
         return new LabTrackDbContext(options);
