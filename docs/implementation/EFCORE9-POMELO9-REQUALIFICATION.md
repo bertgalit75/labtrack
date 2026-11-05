@@ -20,3 +20,19 @@ Then run provider integration tests only against a newly created disposable Mari
 ## Release boundary
 
 This retarget does not authorize enabling MariaDB in `Program.cs`, running production migrations, importing real patient data, deploying the application, or merging either draft PR. The existing fail-closed persistence guard must remain unchanged until all static and disposable-runtime qualification checks pass.
+
+## Local migration regeneration commands
+
+Run these from the repository root in PowerShell after pulling this branch. These commands scaffold/review migration files only; they do not connect to or modify a database.
+
+```powershell
+dotnet tool restore
+dotnet restore .\LabTrack.sln
+dotnet ef migrations remove --project .\src\backend\LabTrack.Infrastructure\LabTrack.Infrastructure.csproj --startup-project .\src\backend\LabTrack.WebApi\LabTrack.WebApi.csproj --context LabTrackDbContext --force
+dotnet ef migrations add InitialMariaDbSchema --project .\src\backend\LabTrack.Infrastructure\LabTrack.Infrastructure.csproj --startup-project .\src\backend\LabTrack.WebApi\LabTrack.WebApi.csproj --context LabTrackDbContext --output-dir Persistence\Migrations
+dotnet ef migrations has-pending-model-changes --project .\src\backend\LabTrack.Infrastructure\LabTrack.Infrastructure.csproj --startup-project .\src\backend\LabTrack.WebApi\LabTrack.WebApi.csproj --context LabTrackDbContext
+dotnet build .\LabTrack.sln -c Release
+dotnet test .\LabTrack.sln -c Release
+```
+
+Inspect the regenerated migration and snapshot diff before committing. The `remove` command is appropriate only for this un-applied initial migration on the qualification branch; do not run it against a migration history already deployed anywhere. Do not run `database update`, `migrations script` against a live connection, or any SQL apply command during this step.
