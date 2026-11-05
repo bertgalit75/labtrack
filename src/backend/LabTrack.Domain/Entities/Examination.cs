@@ -92,6 +92,65 @@ public sealed class ExaminationTest
     public long RequestedByUserId { get; private set; }
     public DateTime? CompletedAtUtc { get; private set; }
     public long? ActualMethodId { get; private set; }
+    /// <summary>
+    /// Adds a selected test-definition version to an examination. The application
+    /// workflow must validate that the version is published and effective, and
+    /// that the actor is authorized to register it.
+    /// </summary>
+    public ExaminationTest(
+        long examinationId,
+        long testDefinitionVersionId,
+        long requestedByUserId,
+        ushort testInstanceNumber = 1,
+        string priority = "Routine",
+        long? actualMethodId = null)
+    {
+        if (examinationId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(examinationId), "Examination ID must be a positive value.");
+        }
+
+        if (testDefinitionVersionId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(testDefinitionVersionId), "Test-definition version ID must be a positive value.");
+        }
+
+        if (requestedByUserId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(requestedByUserId), "Requester user ID must be a positive value.");
+        }
+
+        if (testInstanceNumber == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(testInstanceNumber), "Test instance number must be greater than zero.");
+        }
+
+        if (string.IsNullOrWhiteSpace(priority))
+        {
+            throw new ArgumentException("Priority is required.", nameof(priority));
+        }
+
+        var normalizedPriority = priority.Trim();
+        if (normalizedPriority.Length > 20)
+        {
+            throw new ArgumentException("Priority cannot exceed 20 characters.", nameof(priority));
+        }
+
+        if (actualMethodId is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(actualMethodId), "Actual method ID must be a positive value when supplied.");
+        }
+
+        ExaminationId = examinationId;
+        TestDefinitionVersionId = testDefinitionVersionId;
+        RequestedByUserId = requestedByUserId;
+        TestInstanceNumber = testInstanceNumber;
+        Priority = normalizedPriority;
+        ActualMethodId = actualMethodId;
+        Status = "Pending";
+        RequestedAtUtc = DateTime.UtcNow;
+    }
+
     private ExaminationTest() { }
 }
 
