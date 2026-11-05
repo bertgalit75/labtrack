@@ -46,7 +46,7 @@ public sealed class PatientServiceTests
 
         Assert.Single(page.Items);
         Assert.Equal("Ana", page.Items[0].FirstName);
-        Assert.Equal(2, page.TotalItems == 1 ? 1 : page.TotalItems);
+        Assert.Equal(1L, page.TotalItems);
         Assert.Equal(1, page.TotalPages);
     }
 
