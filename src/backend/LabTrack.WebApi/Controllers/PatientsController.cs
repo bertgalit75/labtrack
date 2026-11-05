@@ -45,7 +45,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
         if (!TryGetActorId(out var actorId)) return Unauthorized();
         var patient = await patients.RegisterAsync(request, actorId, cancellationToken);
         Response.Headers["ETag"] = patient.ETag;
-        return CreatedAtAction(nameof(GetById), new { patientId = patient.Id }, patient);
+        return CreatedAtAction(nameof(GetById), new { patientId = patient.Id },\n            new PatientRegistrationReceipt(patient.Id, patient.PatientNumber, patient.ETag));
     }
 
     [HttpGet("{patientId}")]
@@ -57,7 +57,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
         var patient = await patients.GetAsync(id, cancellationToken);
         if (patient is null) return NotFound();
         Response.Headers["ETag"] = patient.ETag;
-        return Ok(patient);
+        return Ok(new PatientReadSummaryDto(patient.Id, patient.PatientNumber, patient.FirstName,\n            patient.MiddleName, patient.LastName, patient.PatientStatus, patient.ETag));
     }
 
     [HttpPatch("{patientId}")]
