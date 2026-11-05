@@ -85,3 +85,5 @@ app.MapControllers();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
 app.Run();
+
+public partial class Program { }
