@@ -34,7 +34,7 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
         var rows = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         var items = rows.Select(p => new PatientListItemDto(
             p.PatientId.ToString(), p.PatientNumber, p.FirstName, p.MiddleName, p.LastName,
-            p.DateOfBirth, p.SexAtRegistration, p.PatientStatus, ETag(p.RowVersion))).ToArray();
+            p.PatientStatus, ETag(p.RowVersion))).ToArray();
         return new PagedResult<PatientListItemDto>(items, page, pageSize, total,
             total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize));
     }
