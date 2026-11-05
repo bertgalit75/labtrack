@@ -142,8 +142,9 @@ public sealed class PatientApiIntegrationTests
             {
                 services.RemoveAll<DbContextOptions<LabTrackDbContext>>();
                 services.RemoveAll<LabTrackDbContext>();
+                var databaseName = Guid.NewGuid().ToString("N");
                 services.AddDbContext<LabTrackDbContext>(options =>
-                    options.UseInMemoryDatabase(Guid.NewGuid().ToString("N")));
+                    options.UseInMemoryDatabase(databaseName));
 
                 services.AddAuthentication(options =>
                 {
