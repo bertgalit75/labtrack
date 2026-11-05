@@ -25,8 +25,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
     {
         base.OnModelCreating(builder);
         // The SQL baseline intentionally contains the seven classic Identity tables only.
-        // EF Core 10 Identity schema v3 adds AspNetUserPasskeys; keep that feature outside ADR-001 scope.
-        builder.Ignore<IdentityUserPasskey<long>>();
+        // EF Core 9 Identity maps the classic seven Identity tables used by ADR-001.
         ConfigureIdentity(builder);
         ConfigureApplicationModel(builder);
     }
