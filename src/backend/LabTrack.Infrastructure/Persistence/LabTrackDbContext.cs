@@ -10,6 +10,9 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
     : IdentityDbContext<ApplicationUser, IdentityRole<long>, long>(options)
 {
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<PatientExaminationAssignment> PatientExaminationAssignments => Set<PatientExaminationAssignment>();
+    public DbSet<UserDepartmentMembership> UserDepartmentMemberships => Set<UserDepartmentMembership>();
+    public DbSet<Department> Departments => Set<Department>();
     public DbSet<TestDefinition> TestDefinitions => Set<TestDefinition>();
     public DbSet<TestDefinitionVersion> TestDefinitionVersions => Set<TestDefinitionVersion>();
     public DbSet<TestParameterDefinition> TestParameterDefinitions => Set<TestParameterDefinition>();
@@ -33,13 +36,52 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
         builder.Entity<IdentityUserToken<long>>().ToTable("AspNetUserTokens");
 
         builder.Entity<Patient>().ToTable("Patients").HasKey(x => x.PatientId);
-        builder.Entity<Patient>().Property(x => x.PatientId).HasColumnName("PatientId").ValueGeneratedOnAdd();
+        builder.Entity<PatientExaminationAssignment>().ToTable("PatientExaminationAssignments").HasKey(x => x.PatientExaminationAssignmentId);
+        builder.Entity<PatientExaminationAssignment>().HasIndex(x => new { x.UserId, x.ExaminationId, x.DepartmentId, x.IsActive });
+        builder.Entity<PatientExaminationAssignment>().HasIndex(x => new { x.PatientId, x.UserId, x.DepartmentId });
+        builder.Entity<UserDepartmentMembership>().ToTable("UserDepartmentMemberships").HasKey(x => x.UserDepartmentMembershipId);
+        builder.Entity<Department>().ToTable("Departments").HasKey(x => x.DepartmentId);
+        builder.Entity<Department>().Property(x => x.DepartmentCode).HasMaxLength(40).IsRequired();
+        builder.Entity<Department>().Property(x => x.DepartmentName).HasMaxLength(120).IsRequired();
+        builder.Entity<Department>().HasIndex(x => x.DepartmentCode).IsUnique();
+        builder.Entity<PatientExaminationAssignment>().HasOne<Patient>().WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Examination>().HasAlternateKey(x => new { x.ExaminationId, x.PatientId });
+        builder.Entity<PatientExaminationAssignment>().HasOne<Examination>().WithMany().HasForeignKey(x => new { x.ExaminationId, x.PatientId }).HasPrincipalKey(x => new { x.ExaminationId, x.PatientId }).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.AssignedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<UserDepartmentMembership>().HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<UserDepartmentMembership>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<UserDepartmentMembership>().HasIndex(x => new { x.UserId, x.DepartmentId, x.IsActive });
+        builder.Entity<Patient>().Property(x => x.PatientId).ValueGeneratedOnAdd();
         builder.Entity<Patient>().Property(x => x.PatientNumber).HasMaxLength(32).IsRequired();
         builder.Entity<Patient>().HasIndex(x => x.PatientNumber).IsUnique();
         builder.Entity<Patient>().Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+        builder.Entity<Patient>().Property(x => x.MiddleName).HasMaxLength(100);
         builder.Entity<Patient>().Property(x => x.LastName).HasMaxLength(100).IsRequired();
-        builder.Entity<Patient>().Property(x => x.PatientStatus).HasMaxLength(20).HasDefaultValue("Active");
+        builder.Entity<Patient>().Property(x => x.Suffix).HasMaxLength(20);
+        builder.Entity<Patient>().Property(x => x.SexAtRegistration).HasMaxLength(30);
+        builder.Entity<Patient>().Property(x => x.CivilStatus).HasMaxLength(30);
+        builder.Entity<Patient>().Property(x => x.Nationality).HasMaxLength(80);
+        builder.Entity<Patient>().Property(x => x.MobileNumber).HasMaxLength(30);
+        builder.Entity<Patient>().Property(x => x.EmailAddress).HasMaxLength(254);
+        builder.Entity<Patient>().Property(x => x.AddressLine1).HasMaxLength(180);
+        builder.Entity<Patient>().Property(x => x.AddressLine2).HasMaxLength(180);
+        builder.Entity<Patient>().Property(x => x.Barangay).HasMaxLength(100);
+        builder.Entity<Patient>().Property(x => x.CityMunicipality).HasMaxLength(100);
+        builder.Entity<Patient>().Property(x => x.Province).HasMaxLength(100);
+        builder.Entity<Patient>().Property(x => x.PostalCode).HasMaxLength(20);
+        builder.Entity<Patient>().Property(x => x.PatientStatus).HasMaxLength(20).HasDefaultValue("Active").IsRequired();
+        builder.Entity<Patient>().Property(x => x.RowVersion).IsConcurrencyToken();
+        builder.Entity<Patient>().HasIndex(x => new { x.LastName, x.FirstName, x.DateOfBirth });
+        builder.Entity<Patient>().HasIndex(x => x.CanonicalPatientId);
         builder.Entity<Patient>().HasOne<Patient>().WithMany().HasForeignKey(x => x.CanonicalPatientId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<AuditLog>().ToTable("AuditLogs").HasKey(x => x.AuditLogId);
+        builder.Entity<AuditLog>().Property(x => x.ActionType).HasMaxLength(100).IsRequired();
+        builder.Entity<AuditLog>().Property(x => x.EntityType).HasMaxLength(100).IsRequired();
+        builder.Entity<AuditLog>().Property(x => x.Description).HasMaxLength(2000);
+        builder.Entity<AuditLog>().Property(x => x.Reason).HasMaxLength(1000);
 
         builder.Entity<TestDefinition>().ToTable("TestDefinitions").HasKey(x => x.TestDefinitionId);
         builder.Entity<TestDefinition>().Property(x => x.TestCode).HasMaxLength(50).IsRequired();
@@ -57,8 +99,6 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
         builder.Entity<TestResult>().ToTable("TestResults").HasKey(x => x.TestResultId);
         builder.Entity<TestResultRevision>().ToTable("TestResultRevisions").HasKey(x => x.TestResultRevisionId);
         builder.Entity<TestResultRevision>().Property(x => x.NumericValue).HasPrecision(18, 6);
-        builder.Entity<AuditLog>().ToTable("AuditLogs").HasKey(x => x.AuditLogId);
-
         // This initial mapping is a scaffold only. Exact column/type/constraint mapping must be reconciled
         // against SDD-03 and the consolidated SQL, then tested on disposable MariaDB 10.11.
     }

@@ -84,3 +84,8 @@ See `docs/SDD/SDD-08_Consolidated-Design-and-Implementation-Readiness-Review.md`
 | D-050 | Implementation start | Development implementation authorized 2026-11-04. This does not authorize production database execution, real patient-data loading, or deployment. | Authorized within stated boundary |
 | D-051 | Initial implementation host | Existing Windows server PC remains the initial development/hosting target; Linux portability remains a future-proofing objective. Windows 11 Pro remains the recommended production upgrade path where supported. | Confirmed |
 | D-052 | EF Core/MariaDB provider qualification | Do not pin an unverified provider. Qualify an EF Core provider against MariaDB 10.11.x, .NET 10, required migrations, type mappings, and concurrency behavior before persistent API startup. | Open technical gate |
+
+
+| ID | Decision | Current position | Status |
+|---|---|---|---|
+| D-053 | Patient record scope | Patient read and routine demographic update require an active, effective examination assignment for the patient and active, effective membership in the same department. Patient registration remains a separate permission for authorized registration staff and does not itself grant patient read/edit scope. | Confirmed by user (2026-11-05) |

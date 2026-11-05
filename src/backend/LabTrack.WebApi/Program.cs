@@ -1,11 +1,13 @@
+using LabTrack.Application.Patients;
 using LabTrack.Infrastructure.Identity;
+using LabTrack.Infrastructure.Patients;
 using LabTrack.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
 builder.Services.AddAntiforgery(options =>
 {
@@ -62,7 +64,18 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/login";
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Persisted examination assignments intersected with active department memberships
+    // establish record scope in PatientService. Client-supplied scope claims are ignored.
+    options.AddPolicy("patients.read", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("permission", "patients.read"));
+    options.AddPolicy("patients.register", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("permission", "patients.register"));
+    options.AddPolicy("patients.demographics.update", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("permission", "patients.demographics.update"));
+});
+builder.Services.AddScoped<IPatientService, PatientService>();
 var app = builder.Build();
 app.UseHttpsRedirection();
 app.UseRateLimiter();
@@ -72,3 +85,5 @@ app.MapControllers();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
 app.Run();
+
+public partial class Program { }
