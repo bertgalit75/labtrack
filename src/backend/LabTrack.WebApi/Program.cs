@@ -1,4 +1,6 @@
+using LabTrack.Application.Patients;
 using LabTrack.Infrastructure.Identity;
+using LabTrack.Infrastructure.Patients;
 using LabTrack.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -62,7 +64,18 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/login";
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Permission grants are deliberately not seeded while SDD-09 role grants remain unapproved.
+    // Read/update access also requires an explicit all-record scope claim; missing scope is denied.
+    options.AddPolicy("patients.read", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("permission", "patients.read").RequireClaim("patient_scope", "all"));
+    options.AddPolicy("patients.register", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("permission", "patients.register"));
+    options.AddPolicy("patients.demographics.update", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("permission", "patients.demographics.update").RequireClaim("patient_scope", "all"));
+});
+builder.Services.AddScoped<IPatientService, PatientService>();
 var app = builder.Build();
 app.UseHttpsRedirection();
 app.UseRateLimiter();
