@@ -66,14 +66,15 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    // Permission grants are deliberately not seeded while SDD-09 role grants remain unapproved.
-    // Read/update access also requires an explicit all-record scope claim; missing scope is denied.
+    // SDD-07 requires assigned-duty/object-level patient scope. No assignment model or approved
+    // scope rule exists yet, so do not accept a broad "all" claim as a substitute for record checks.
+    // Read and edit stay fail-closed until a server-side assignment scope is implemented and tested.
     options.AddPolicy("patients.read", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("permission", "patients.read").RequireClaim("patient_scope", "all"));
+        .RequireClaim("permission", "patients.read").RequireAssertion(_ => false));
     options.AddPolicy("patients.register", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("permission", "patients.register"));
     options.AddPolicy("patients.demographics.update", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("permission", "patients.demographics.update").RequireClaim("patient_scope", "all"));
+        .RequireClaim("permission", "patients.demographics.update").RequireAssertion(_ => false));
 });
 builder.Services.AddScoped<IPatientService, PatientService>();
 var app = builder.Build();
