@@ -8,9 +8,9 @@ namespace LabTrack.Infrastructure.Patients;
 public sealed class PatientService(LabTrackDbContext db) : IPatientService
 {
     public async Task<PagedResult<PatientListItemDto>> SearchAsync(
-        string? search, string? status, int page, int pageSize, string? sort, CancellationToken cancellationToken)
+        string? search, string? status, int page, int pageSize, string? sort, long actorUserId, CancellationToken cancellationToken)
     {
-        var query = db.Patients.AsNoTracking().AsQueryable();
+        var query = ApplyPatientScope(db.Patients.AsNoTracking(), actorUserId);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -39,9 +39,9 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
             total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize));
     }
 
-    public async Task<PatientDto?> GetAsync(long patientId, CancellationToken cancellationToken)
+    public async Task<PatientDto?> GetAsync(long patientId, long actorUserId, CancellationToken cancellationToken)
     {
-        var patient = await db.Patients.AsNoTracking().SingleOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
+        var patient = await ApplyPatientScope(db.Patients.AsNoTracking(), actorUserId).SingleOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
         return patient is null ? null : Map(patient);
     }
 
@@ -67,9 +67,9 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
 
     public async Task<PatientDto?> UpdateDemographicsAsync(
         long patientId, UpdatePatientDemographicsRequest request, long actorUserId,
-        long expectedRowVersion, CancellationToken cancellationToken)
+        long expectedRowVersion, long actorUserId, CancellationToken cancellationToken)
     {
-        var patient = await db.Patients.SingleOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
+        var patient = await ApplyPatientScope(db.Patients, actorUserId).SingleOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
         if (patient is null) return null;
         if (patient.RowVersion != expectedRowVersion)
             throw new DbUpdateConcurrencyException("The patient record has changed.");
@@ -95,6 +95,18 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
         await db.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return Map(patient);
+    }
+
+
+    private IQueryable<Patient> ApplyPatientScope(IQueryable<Patient> patients, long actorUserId)
+    {
+        var now = DateTime.UtcNow;
+        return patients.Where(p => db.PatientExaminationAssignments.Any(a =>
+            a.PatientId == p.PatientId && a.UserId == actorUserId && a.IsActive &&
+            a.EffectiveFromUtc <= now && (a.EffectiveToUtc == null || a.EffectiveToUtc > now) &&
+            db.Examinations.Any(e => e.ExaminationId == a.ExaminationId && e.PatientId == p.PatientId) &&
+            db.UserDepartmentMemberships.Any(m => m.UserId == actorUserId && m.DepartmentId == a.DepartmentId &&
+                m.IsActive && m.EffectiveFromUtc <= now && (m.EffectiveToUtc == null || m.EffectiveToUtc > now))));
     }
 
     private static string ETag(long rowVersion) => $"\"{rowVersion}\"";
