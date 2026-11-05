@@ -20,17 +20,17 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
         [FromQuery] string? sort = null, CancellationToken cancellationToken = default)
     {
         if (page < 1 || pageSize is < 1 or > 100 || ((long)page - 1) * pageSize > int.MaxValue)
-            return ValidationProblem(new Dictionary<string, string[]> {
+            return ValidationProblem(new ValidationProblemDetails { Errors = new Dictionary<string, string[]> {
                 ["pagination"] = ["Page must be at least 1 and pageSize must be between 1 and 100."]
-            });
+            } });
         if (search?.Length > 100 || status?.Length > 20)
-            return ValidationProblem(new Dictionary<string, string[]> {
+            return ValidationProblem(new ValidationProblemDetails { Errors = new Dictionary<string, string[]> {
                 ["filter"] = ["Search and status filters exceed their allowed length."]
-            });
+            } });
         if (sort is not null && !new[] { "lastName", "firstName", "patientNumber", "registeredAt" }.Contains(sort, StringComparer.OrdinalIgnoreCase))
-            return ValidationProblem(new Dictionary<string, string[]> {
+            return ValidationProblem(new ValidationProblemDetails { Errors = new Dictionary<string, string[]> {
                 ["sort"] = ["Sort must be one of: lastName, firstName, patientNumber, registeredAt."]
-            });
+            } });
 
         var result = await patients.SearchAsync(search, status, page, pageSize, sort, cancellationToken);
         return Ok(result);
@@ -74,9 +74,9 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
             request.EmailAddress is null && request.AddressLine1 is null && request.AddressLine2 is null &&
             request.Barangay is null && request.CityMunicipality is null && request.Province is null &&
             request.PostalCode is null)
-            return ValidationProblem(new Dictionary<string, string[]> {
+            return ValidationProblem(new ValidationProblemDetails { Errors = new Dictionary<string, string[]> {
                 ["body"] = ["At least one routine demographic field must be supplied."]
-            });
+            } });
 
         var ifMatch = Request.Headers["If-Match"].ToString();
         if (string.IsNullOrWhiteSpace(ifMatch))
