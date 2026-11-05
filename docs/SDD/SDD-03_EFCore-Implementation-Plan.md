@@ -1,10 +1,11 @@
 # SDD-03 EF Core Implementation Plan
 
-**Status:** Initial 18-table EF model, metadata tests, and CI workflow committed; execution and MariaDB provider qualification pending  
+**Status:** Initial 18-table EF model and metadata tests committed; Microting EF Core 10 provider statically qualified; MariaDB runtime qualification remains open  
 **Target framework:** .NET 10 / EF Core 10  
 **Database target:** MariaDB 10.11.x  
-**Provider direction:** Pomelo, pending a stable EF Core 10-compatible release  
-**Branch:** `feat/kestrel-windows-hosting-prep`
+**Provider direction:** Microting-maintained EF Core 10 fork of Pomelo, qualification candidate only  
+**Qualification branch:** `qualify/microting-efcore10-mariadb1011`  
+**Base branch:** `feat/kestrel-windows-hosting-prep`
 
 ## 1. Approved initial persistence scope
 
@@ -31,7 +32,11 @@ Repository-side model and test work does not authorize a database connection, SQ
 
 The existing `Program.cs` guard remains unchanged: only Development with `Persistence:Mode=DevelopmentInMemory` is permitted. All other modes fail closed.
 
-The repository retains `net10.0` and EF Core / Identity EF Core 10.0.0. The stable Pomelo 9.0.0 release previously evaluated targets EF Core 9.0.x and must not be added to this EF Core 10 dependency graph. Do not downgrade EF Core, suppress dependency diagnostics, or use unapproved preview/nightly packages. Provider activation remains blocked until a stable compatible provider is reviewed and approved.
+The official `Pomelo.EntityFrameworkCore.MySql` 9.0.0 release targets EF Core 9.0.x and is not compatible with the repository's EF Core 10 dependency graph. Do not add it, downgrade EF Core, suppress dependency diagnostics, or use preview/nightly packages.
+
+The current qualification candidate is the stable `Microting.EntityFrameworkCore.MySql` 10.0.14 package, a company-maintained fork of Pomelo. Its published package targets `net10.0`, requires `Microsoft.EntityFrameworkCore.Relational >= 10.0.14` and `MySqlConnector >= 2.6.2`, and documents MariaDB 10.11 LTS among its tested server lines. The fork renamed its package, assembly, and provider namespaces from Pomelo to Microting; its `UseMySql` extension remains in `Microsoft.EntityFrameworkCore`. This is not the official Pomelo package, and qualification must confirm its exact behavior before adoption.
+
+The qualification branch aligns the EF Core, Identity EF Core, and InMemory package references to 10.0.14 and adds a provider-model test configured for MariaDB 10.11.0 metadata. The test supplies no connection string and does not open a connection. It verifies provider identity, the 18-table relational model, and critical relational store types. The user confirmed a clean working tree, package resolution at 10.0.14, a successful .NET 10 Release solution build, and 7/7 passing tests. GitHub Actions run 41804193323 also completed successfully. These results establish static model/provider compatibility only; they do not establish runtime database behavior or complete SQL-baseline equivalence.
 
 ## 4. Implemented repository changes
 
@@ -40,29 +45,32 @@ The repository retains `net10.0` and EF Core / Identity EF Core 10.0.0. The stab
 - Configured table/column names and store types, lengths, date/time and decimal precision, unsigned numeric types, defaults, nullability, keys, named indexes, in-scope FKs with RESTRICT delete behavior, and four declared CHECK constraints.
 - Added `LabTrack.Infrastructure.Tests` to the solution.
 - Added metadata tests for the exact 18-table allowlist, absence of the 30 excluded tables and Identity passkeys, all 18 column inventories, named indexes, CHECK constraints, critical store types, and RESTRICT behavior for EF-modeled FKs.
-- Added `.github/workflows/backend-model-verification.yml` to restore, build, and run the metadata tests on pushes and pull requests to this branch.
+- Added `.github/workflows/backend-model-verification.yml` to restore, build, and run the metadata tests on pushes and pull requests to the feature branch.
 
 ## 5. Verification status
 
-The test project and workflow have been committed, but **no successful build or test run has been observed yet**. The GitHub workflow run lookup returned no run for the workflow-creation commit. Do not describe the code as build-verified or the tests as passing until a run reports success.
+On base commit `3cbac6f`, the user confirmed:
 
-Run from the repository root in PowerShell:
+- `dotnet build .\LabTrack.sln`: passed.
+- `dotnet test .\LabTrack.sln`: passed, 6 tests, 0 failures.
+- GitHub Actions run `41802561391` (Backend model verification): passed.
 
-```powershell
-dotnet restore .\LabTrack.sln
-dotnet build .\LabTrack.sln --no-restore --configuration Release
-dotnet test .\src\backend\LabTrack.Infrastructure.Tests\LabTrack.Infrastructure.Tests.csproj --no-build --configuration Release
-```
+On qualification commit `b45f942322114dd566f63ca16babe4731ef3ae81`, the user confirmed:
 
-These commands build the EF model using the InMemory provider; they do not connect to MariaDB or apply migrations.
+- `dotnet restore .\\LabTrack.sln`: passed.
+- `dotnet build .\\LabTrack.sln --no-restore --configuration Release`: passed.
+- `dotnet test .\\LabTrack.sln --no-build --configuration Release`: passed, 7 tests, 0 failures.
+- GitHub Actions run `41804193323` (Backend model verification): passed.
+- Local working tree was clean and all four top-level EF/Identity/provider packages resolved to 10.0.14.
+
+Static provider qualification is complete for model construction using MariaDB 10.11.0 metadata. A static comparison of the 18 approved model column-name inventories against `database/LabTrack_Consolidated_Install.sql` found exact column-name set matches for all 18 tables (the SQL source contains 48 tables total). This check does not compare every SQL type, nullability, default, index, key, constraint, collation, or runtime behavior; those remain open. The user identified the intended disposable runtime target as MariaDB 10.11.6.0 and explicitly approved a connection only to a newly created disposable database. No endpoint/credentials or disposable instance have been supplied or provisioned in this workflow yet, so no connection has been made.
 
 ## 6. Remaining qualification sequence
 
-1. Obtain a successful solution build and metadata-test run; resolve every failure.
-2. Reconcile any remaining differences between the model metadata and the 18 SQL table definitions.
-3. Re-check official Pomelo release compatibility with EF Core 10. Do not install an incompatible version.
-4. Only after separate explicit authorization, qualify provider behavior against a newly created disposable MariaDB 10.11 database populated with synthetic data.
-5. Never use production or the user's existing local database for qualification. Do not apply migrations.
-6. Request a separate explicit approval before changing the startup guard to enable MariaDB.
+1. Complete a static, table-by-table comparison of the provider relational model against the unchanged `database/LabTrack_Consolidated_Install.sql` baseline, covering columns, nullability, defaults, primary/unique/secondary indexes, CHECK constraints, identity key generation, and FK behavior. Record any intentional differences and resolve unintended mismatches.
+2. Confirm the exact MariaDB 10.11 patch version intended for qualification.
+3. Only after separate explicit authorization, run a narrowly scoped integration qualification against a newly created disposable MariaDB database/instance. Do not use production or the user's existing local database. Do not apply migrations or change schema; test only explicitly approved non-destructive operations and metadata behavior.
+4. Review the results and obtain explicit approval before changing the startup guard to enable MariaDB.
+5. Keep the qualification PR unmerged until static comparison, authorized runtime qualification, and review gates are complete.
 
 Until those gates are passed: no MariaDB connection, no migrations, no schema execution, and no production activation.
