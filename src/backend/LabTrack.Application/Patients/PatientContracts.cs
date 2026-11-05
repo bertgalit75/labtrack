@@ -57,8 +57,8 @@ public sealed class UpdatePatientDemographicsRequest
 
 public interface IPatientService
 {
-    Task<PagedResult<PatientListItemDto>> SearchAsync(string? search, string? status, int page, int pageSize, string? sort, CancellationToken cancellationToken);
-    Task<PatientDto?> GetAsync(long patientId, CancellationToken cancellationToken);
+    Task<PagedResult<PatientListItemDto>> SearchAsync(string? search, string? status, int page, int pageSize, string? sort, long actorUserId, CancellationToken cancellationToken);
+    Task<PatientDto?> GetAsync(long patientId, long actorUserId, CancellationToken cancellationToken);
     Task<PatientDto> RegisterAsync(RegisterPatientRequest request, long actorUserId, CancellationToken cancellationToken);
-    Task<PatientDto?> UpdateDemographicsAsync(long patientId, UpdatePatientDemographicsRequest request, long actorUserId, long expectedRowVersion, CancellationToken cancellationToken);
+    Task<PatientDto?> UpdateDemographicsAsync(long patientId, UpdatePatientDemographicsRequest request, long actorUserId, long expectedRowVersion, long actorUserId, CancellationToken cancellationToken);
 }
