@@ -67,7 +67,7 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
 
     public async Task<PatientDto?> UpdateDemographicsAsync(
         long patientId, UpdatePatientDemographicsRequest request, long actorUserId,
-        long expectedRowVersion, long actorUserId, CancellationToken cancellationToken)
+        long expectedRowVersion, CancellationToken cancellationToken)
     {
         var patient = await ApplyPatientScope(db.Patients, actorUserId).SingleOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
         if (patient is null) return null;
