@@ -19,7 +19,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
         [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
         [FromQuery] string? sort = null, CancellationToken cancellationToken = default)
     {
-        if (page < 1 || pageSize is < 1 or > 100)
+        if (page < 1 || pageSize is < 1 or > 100 || ((long)page - 1) * pageSize > int.MaxValue)
             return ValidationProblem(new Dictionary<string, string[]> {
                 ["pagination"] = ["Page must be at least 1 and pageSize must be between 1 and 100."]
             });
@@ -70,6 +70,13 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
         if (!long.TryParse(patientId, NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id <= 0)
             return BadRequest(new ProblemDetails { Title = "Invalid patient identifier.", Status = StatusCodes.Status400BadRequest });
         if (!TryGetActorId(out var actorId)) return Unauthorized();
+        if (request.CivilStatus is null && request.Nationality is null && request.MobileNumber is null &&
+            request.EmailAddress is null && request.AddressLine1 is null && request.AddressLine2 is null &&
+            request.Barangay is null && request.CityMunicipality is null && request.Province is null &&
+            request.PostalCode is null)
+            return ValidationProblem(new Dictionary<string, string[]> {
+                ["body"] = ["At least one routine demographic field must be supplied."]
+            });
 
         var ifMatch = Request.Headers["If-Match"].ToString();
         if (string.IsNullOrWhiteSpace(ifMatch))
