@@ -333,4 +333,15 @@ public sealed class ExaminationDomainTests
             10, 1, "Numeric", 34, numericValue: 1m, revisionReason: new string('R', 1001)));
     }
 
+
+    [Fact]
+    public void Revision_creation_rejects_blank_text_payloads_after_normalization()
+    {
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(
+            10, 1, "Text", 34, textValue: "   "));
+
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(
+            10, 1, "Titer", 34, titerValue: "   "));
+    }
+
 }
