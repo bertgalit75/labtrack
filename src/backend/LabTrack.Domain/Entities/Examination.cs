@@ -13,6 +13,18 @@ public sealed class Examination
     public long CreatedByUserId { get; private set; }
     public long RowVersion { get; private set; } = 1;
     private Examination() { }
+
+    public Examination(string examinationNumber, long patientId, DateOnly examinationDate, long createdByUserId)
+    {
+        if (string.IsNullOrWhiteSpace(examinationNumber)) throw new ArgumentException("Examination number is required.", nameof(examinationNumber));
+        if (patientId <= 0) throw new ArgumentOutOfRangeException(nameof(patientId));
+        if (createdByUserId <= 0) throw new ArgumentOutOfRangeException(nameof(createdByUserId));
+        ExaminationNumber = examinationNumber.Trim();
+        PatientId = patientId;
+        ExaminationDate = examinationDate;
+        CreatedByUserId = createdByUserId;
+        CreatedAtUtc = DateTime.UtcNow;
+    }
 }
 
 public sealed class ExaminationTest
