@@ -45,6 +45,7 @@ CREATE TABLE PatientExaminationAssignments (
  PRIMARY KEY (PatientExaminationAssignmentId),
  KEY IX_PatientExamAssignments_UserExamDept (UserId, ExaminationId, DepartmentId, IsActive),
  KEY IX_PatientExamAssignments_PatientUserDept (PatientId, UserId, DepartmentId),
+ CONSTRAINT FK_PatientExamAssignments_Patient FOREIGN KEY (PatientId) REFERENCES Patients(PatientId) ON DELETE RESTRICT,
  CONSTRAINT FK_PatientExamAssignments_ExamPatient FOREIGN KEY (ExaminationId, PatientId)
   REFERENCES Examinations(ExaminationId, PatientId) ON DELETE RESTRICT,
  CONSTRAINT FK_PatientExamAssignments_User FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE RESTRICT,
