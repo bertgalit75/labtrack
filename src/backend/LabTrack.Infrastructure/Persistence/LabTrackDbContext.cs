@@ -45,9 +45,13 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
         builder.Entity<Department>().Property(x => x.DepartmentName).HasMaxLength(120).IsRequired();
         builder.Entity<Department>().HasIndex(x => x.DepartmentCode).IsUnique();
         builder.Entity<PatientExaminationAssignment>().HasOne<Patient>().WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
-        builder.Entity<PatientExaminationAssignment>().HasOne<Examination>().WithMany().HasForeignKey(x => x.ExaminationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Examination>().HasAlternateKey(x => new { x.ExaminationId, x.PatientId });
+        builder.Entity<PatientExaminationAssignment>().HasOne<Examination>().WithMany().HasForeignKey(x => new { x.ExaminationId, x.PatientId }).HasPrincipalKey(x => new { x.ExaminationId, x.PatientId }).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<PatientExaminationAssignment>().HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.AssignedByUserId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<UserDepartmentMembership>().HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<UserDepartmentMembership>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<UserDepartmentMembership>().HasIndex(x => new { x.UserId, x.DepartmentId, x.IsActive });
         builder.Entity<Patient>().Property(x => x.PatientId).ValueGeneratedOnAdd();
         builder.Entity<Patient>().Property(x => x.PatientNumber).HasMaxLength(32).IsRequired();
