@@ -81,7 +81,32 @@ public sealed class PatientServiceTests
             service.UpdateDemographicsAsync(id, new UpdatePatientDemographicsRequest { Nationality = "Filipino" },
                 8, 1, CancellationToken.None));
     }
-    private static async Task GrantPatientAccessAsync(LabTrackDbContext db, long userId, long departmentId, long? patientId = null)
+
+    [Fact]
+    public async Task SearchAndDetail_RequireMatchingActiveDepartmentMembership()
+    {
+        await using var db = CreateContext();
+        var service = new PatientService(db);
+        var created = await service.RegisterAsync(new RegisterPatientRequest { FirstName = "Lia", LastName = "Cruz" }, 7, CancellationToken.None);
+        var patientId = long.Parse(created.Id);
+
+        await GrantPatientAccessAsync(db, 7, 3, patientId, membershipDepartmentId: 4);
+        var blocked = await service.SearchAsync(null, null, 1, 25, null, 7, CancellationToken.None);
+        Assert.Empty(blocked.Items);
+        Assert.Null(await service.GetAsync(patientId, 7, CancellationToken.None));
+
+        db.UserDepartmentMemberships.Add(new UserDepartmentMembership
+        {
+            UserId = 7, DepartmentId = 3, IsActive = true, EffectiveFromUtc = DateTime.UtcNow.AddMinutes(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var allowed = await service.SearchAsync(null, null, 1, 25, null, 7, CancellationToken.None);
+        Assert.Single(allowed.Items);
+        Assert.NotNull(await service.GetAsync(patientId, 7, CancellationToken.None));
+    }
+
+    private static async Task GrantPatientAccessAsync(LabTrackDbContext db, long userId, long departmentId, long? patientId = null, long? membershipDepartmentId = null)
     {
         var patient = patientId is null
             ? await db.Patients.OrderBy(p => p.PatientId).FirstAsync()
@@ -97,7 +122,7 @@ public sealed class PatientServiceTests
         });
         db.UserDepartmentMemberships.Add(new UserDepartmentMembership
         {
-            UserId = userId, DepartmentId = departmentId, IsActive = true, EffectiveFromUtc = now
+            UserId = userId, DepartmentId = membershipDepartmentId ?? departmentId, IsActive = true, EffectiveFromUtc = now
         });
         await db.SaveChangesAsync();
     }
