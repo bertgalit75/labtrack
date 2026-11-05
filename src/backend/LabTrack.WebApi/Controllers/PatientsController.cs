@@ -32,7 +32,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
                 ["sort"] = ["Sort must be one of: lastName, firstName, patientNumber, registeredAt."]
             } });
 
-        var result = await patients.SearchAsync(search, status, page, pageSize, sort, cancellationToken);
+        var result = await patients.SearchAsync(search, status, page, pageSize, sort, GetActorId(), cancellationToken);
         return Ok(result);
     }
 
@@ -55,7 +55,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
     {
         if (!long.TryParse(patientId, NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id <= 0)
             return BadRequest(new ProblemDetails { Title = "Invalid patient identifier.", Status = StatusCodes.Status400BadRequest });
-        var patient = await patients.GetAsync(id, cancellationToken);
+        var patient = await patients.GetAsync(id, GetActorId(), cancellationToken);
         if (patient is null) return NotFound();
         Response.Headers["ETag"] = patient.ETag;
         return Ok(new PatientReadSummaryDto(patient.Id, patient.PatientNumber, patient.FirstName,
@@ -90,7 +90,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
 
         try
         {
-            var patient = await patients.UpdateDemographicsAsync(id, request, actorId, rowVersion, cancellationToken);
+            var patient = await patients.UpdateDemographicsAsync(id, request, actorId, rowVersion, GetActorId(), cancellationToken);
             if (patient is null) return NotFound();
             Response.Headers["ETag"] = patient.ETag;
             return Ok(new PatientReadSummaryDto(patient.Id, patient.PatientNumber, patient.FirstName,
@@ -102,6 +102,8 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
                 new ProblemDetails { Title = "The patient record has changed. Reload before updating.", Status = StatusCodes.Status412PreconditionFailed });
         }
     }
+
+    private long GetActorId() => long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0 ? id : 0;
 
     private bool TryGetActorId(out long actorId) =>
         long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), NumberStyles.None,
