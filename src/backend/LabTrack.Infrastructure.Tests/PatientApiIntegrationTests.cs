@@ -21,7 +21,7 @@ namespace LabTrack.Infrastructure.Tests;
 public sealed class PatientApiIntegrationTests
 {
     [Fact]
-    public async Task PatientReadsAndDemographicEdits_AreDeniedUntilRecordScopeIsImplemented()
+    public async Task PatientReadsAndDemographicEdits_RequirePersistedExaminationAndDepartmentScope()
     {
         using var factory = new PatientApiFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
@@ -30,15 +30,19 @@ public sealed class PatientApiIntegrationTests
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
 
         SetIdentity(client, "patients.read");
-        var withoutScope = await client.GetAsync("/api/v1/patients");
-        Assert.Equal(HttpStatusCode.Forbidden, withoutScope.StatusCode);
+        var withoutAssignment = await client.GetAsync("/api/v1/patients");
+        Assert.Equal(HttpStatusCode.OK, withoutAssignment.StatusCode);
+        var emptyPage = await withoutAssignment.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(0, emptyPage.GetProperty("totalItems").GetInt64());
 
-        // A caller-supplied/broad all-record scope claim must not bypass the missing object-scope model.
+        // A caller-supplied/broad all-record scope claim cannot create persisted assignment scope.
         SetIdentity(client, "patients.read", scope: "all");
         var broadScopeList = await client.GetAsync("/api/v1/patients");
-        Assert.Equal(HttpStatusCode.Forbidden, broadScopeList.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, broadScopeList.StatusCode);
+        var broadPage = await broadScopeList.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(0, broadPage.GetProperty("totalItems").GetInt64());
         var broadScopeDetail = await client.GetAsync("/api/v1/patients/1");
-        Assert.Equal(HttpStatusCode.Forbidden, broadScopeDetail.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, broadScopeDetail.StatusCode);
 
         SetIdentity(client, "patients.demographics.update", scope: "all");
         using var patch = new HttpRequestMessage(HttpMethod.Patch, "/api/v1/patients/1")
@@ -46,7 +50,7 @@ public sealed class PatientApiIntegrationTests
             Content = JsonContent.Create(new { mobileNumber = "09999999999" })
         };
         var update = await client.SendAsync(patch);
-        Assert.Equal(HttpStatusCode.Forbidden, update.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
     }
 
     [Fact]
