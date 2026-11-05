@@ -202,4 +202,135 @@ public sealed class ExaminationDomainTests
             priority: new string('P', 21)));
     }
 
+
+    [Fact]
+    public void Test_result_creation_sets_identity_and_utc_timestamp_without_current_revision()
+    {
+        var beforeCreation = DateTime.UtcNow;
+
+        var result = new TestResult(
+            examinationTestId: 12,
+            testParameterDefinitionId: 56,
+            createdByUserId: 34);
+
+        var afterCreation = DateTime.UtcNow;
+
+        Assert.Equal(12, result.ExaminationTestId);
+        Assert.Equal(56, result.TestParameterDefinitionId);
+        Assert.Equal(34, result.CreatedByUserId);
+        Assert.Null(result.CurrentRevisionId);
+        Assert.Equal(DateTimeKind.Utc, result.CreatedAtUtc.Kind);
+        Assert.InRange(result.CreatedAtUtc, beforeCreation, afterCreation);
+    }
+
+    [Fact]
+    public void Test_result_creation_rejects_non_positive_identifiers()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResult(0, 56, 34));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResult(12, 0, 34));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResult(12, 56, 0));
+    }
+
+    [Fact]
+    public void Numeric_revision_creation_sets_draft_defaults_and_value_snapshots()
+    {
+        var beforeCreation = DateTime.UtcNow;
+
+        var revision = new TestResultRevision(
+            testResultId: 10,
+            revisionNumber: 1,
+            valueType: " Numeric ",
+            createdByUserId: 34,
+            numericValue: 12.345678m,
+            unitId: 4,
+            referenceIntervalId: 5,
+            unitSnapshot: " mg/dL ",
+            referenceRangeSnapshot: " 5.0-15.0 ",
+            methodSnapshot: " Method A ",
+            isAbnormal: true,
+            interpretation: " Above expected ",
+            revisionReason: " Initial entry ");
+
+        var afterCreation = DateTime.UtcNow;
+
+        Assert.Equal(10, revision.TestResultId);
+        Assert.Equal(1, revision.RevisionNumber);
+        Assert.Equal("Numeric", revision.ValueType);
+        Assert.Equal(12.345678m, revision.NumericValue);
+        Assert.Equal(4, revision.UnitId);
+        Assert.Equal(5, revision.ReferenceIntervalId);
+        Assert.Equal("mg/dL", revision.UnitSnapshot);
+        Assert.Equal("5.0-15.0", revision.ReferenceRangeSnapshot);
+        Assert.Equal("Method A", revision.MethodSnapshot);
+        Assert.True(revision.IsAbnormal);
+        Assert.False(revision.IsCritical);
+        Assert.Equal("Above expected", revision.Interpretation);
+        Assert.Equal("Initial entry", revision.RevisionReason);
+        Assert.Equal("Draft", revision.Status);
+        Assert.Equal(34, revision.CreatedByUserId);
+        Assert.Equal(DateTimeKind.Utc, revision.CreatedAtUtc.Kind);
+        Assert.InRange(revision.CreatedAtUtc, beforeCreation, afterCreation);
+    }
+
+    [Theory]
+    [InlineData("Qualitative")]
+    [InlineData("Text")]
+    [InlineData("Titer")]
+    public void Revision_creation_accepts_each_non_numeric_value_type(string valueType)
+    {
+        var revision = valueType switch
+        {
+            "Qualitative" => new TestResultRevision(10, 1, valueType, 34, resultValueOptionId: 7),
+            "Text" => new TestResultRevision(10, 1, valueType, 34, textValue: "Detected"),
+            "Titer" => new TestResultRevision(10, 1, valueType, 34, titerValue: "1:160"),
+            _ => throw new InvalidOperationException()
+        };
+
+        Assert.Equal(valueType, revision.ValueType);
+        Assert.Equal("Draft", revision.Status);
+    }
+
+    [Fact]
+    public void Revision_creation_rejects_invalid_identifiers_revision_number_and_value_type()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResultRevision(0, 1, "Numeric", 34, numericValue: 1m));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResultRevision(10, 0, "Numeric", 34, numericValue: 1m));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResultRevision(10, 1, "Numeric", 0, numericValue: 1m));
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, "Unknown", 34, numericValue: 1m));
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, " ", 34, numericValue: 1m));
+    }
+
+    [Fact]
+    public void Revision_creation_requires_exactly_one_payload_matching_value_type()
+    {
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, "Numeric", 34));
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, "Numeric", 34, numericValue: 1m, textValue: "also text"));
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, "Qualitative", 34, numericValue: 1m));
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, "Text", 34, textValue: " "));
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(10, 1, "Titer", 34, titerValue: " "));
+    }
+
+    [Fact]
+    public void Revision_creation_enforces_decimal_precision_and_optional_identifier_rules()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResultRevision(
+            10, 1, "Numeric", 34, numericValue: 1.1234567m));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TestResultRevision(
+            10, 1, "Numeric", 34, numericValue: 1m, unitId: 0));
+    }
+
+    [Fact]
+    public void Revision_creation_enforces_snapshot_and_reason_column_lengths()
+    {
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(
+            10, 1, "Titer", 34, titerValue: new string('T', 81)));
+
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(
+            10, 1, "Numeric", 34, numericValue: 1m, interpretation: new string('I', 2001)));
+
+        Assert.Throws<ArgumentException>(() => new TestResultRevision(
+            10, 1, "Numeric", 34, numericValue: 1m, revisionReason: new string('R', 1001)));
+    }
+
 }
