@@ -21,7 +21,7 @@ namespace LabTrack.Infrastructure.Tests;
 public sealed class PatientApiIntegrationTests
 {
     [Fact]
-    public async Task PatientRead_RequiresAuthenticationPermissionAndAllRecordScope()
+    public async Task PatientReadsAndDemographicEdits_AreDeniedUntilRecordScopeIsImplemented()
     {
         using var factory = new PatientApiFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
@@ -30,16 +30,27 @@ public sealed class PatientApiIntegrationTests
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
 
         SetIdentity(client, "patients.read");
-        var missingScope = await client.GetAsync("/api/v1/patients");
-        Assert.Equal(HttpStatusCode.Forbidden, missingScope.StatusCode);
+        var withoutScope = await client.GetAsync("/api/v1/patients");
+        Assert.Equal(HttpStatusCode.Forbidden, withoutScope.StatusCode);
 
+        // A caller-supplied/broad all-record scope claim must not bypass the missing object-scope model.
         SetIdentity(client, "patients.read", scope: "all");
-        var allowed = await client.GetAsync("/api/v1/patients");
-        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        var broadScopeList = await client.GetAsync("/api/v1/patients");
+        Assert.Equal(HttpStatusCode.Forbidden, broadScopeList.StatusCode);
+        var broadScopeDetail = await client.GetAsync("/api/v1/patients/1");
+        Assert.Equal(HttpStatusCode.Forbidden, broadScopeDetail.StatusCode);
+
+        SetIdentity(client, "patients.demographics.update", scope: "all");
+        using var patch = new HttpRequestMessage(HttpMethod.Patch, "/api/v1/patients/1")
+        {
+            Content = JsonContent.Create(new { mobileNumber = "09999999999" })
+        };
+        var update = await client.SendAsync(patch);
+        Assert.Equal(HttpStatusCode.Forbidden, update.StatusCode);
     }
 
     [Fact]
-    public async Task RegisterAndUpdate_RequireCsrfAndEnforceIfMatch()
+    public async Task Register_RequiresCsrfAndReturnsOnlyMinimalReceipt()
     {
         using var factory = new PatientApiFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
@@ -48,7 +59,8 @@ public sealed class PatientApiIntegrationTests
         var missingCsrf = await client.PostAsJsonAsync("/api/v1/patients", new
         {
             firstName = "Ana",
-            lastName = "Reyes"
+            lastName = "Reyes",
+            mobileNumber = "09170000000"
         });
         Assert.Equal(HttpStatusCode.BadRequest, missingCsrf.StatusCode);
 
@@ -59,47 +71,22 @@ public sealed class PatientApiIntegrationTests
             {
                 firstName = "Ana",
                 lastName = "Reyes",
-                mobileNumber = "09170000000"
+                mobileNumber = "09170000000",
+                addressLine1 = "123 Example Street"
             })
         };
         AddCsrf(register, cookie, token);
         var created = await client.SendAsync(register);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.True(created.Headers.Location is not null);
-        var createdBody = await created.Content.ReadFromJsonAsync<JsonElement>();
-        var patientId = createdBody.GetProperty("id").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(patientId));
-
-        SetIdentity(client, "patients.read", scope: "all");
-        var read = await client.GetAsync($"/api/v1/patients/{patientId}");
-        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
-        Assert.Equal("Ana", (await read.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("firstName").GetString());
-
-        SetIdentity(client, "patients.demographics.update", scope: "all");
-        var etag = created.Headers.ETag?.ToString();
-        Assert.Equal("\"1\"", etag);
-
-        using var update = new HttpRequestMessage(HttpMethod.Patch, $"/api/v1/patients/{patientId}")
-        {
-            Content = JsonContent.Create(new { civilStatus = "Married" })
-        };
-        update.Headers.TryAddWithoutValidation("If-Match", etag);
-        AddCsrf(update, cookie, token);
-        var updated = await client.SendAsync(update);
-        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-        Assert.Equal("\"2\"", updated.Headers.ETag?.ToString());
-        var updatedBody = await updated.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Ana", updatedBody.GetProperty("firstName").GetString());
-        Assert.Equal("Married", updatedBody.GetProperty("civilStatus").GetString());
-
-        using var staleUpdate = new HttpRequestMessage(HttpMethod.Patch, $"/api/v1/patients/{patientId}")
-        {
-            Content = JsonContent.Create(new { nationality = "Filipino" })
-        };
-        staleUpdate.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
-        AddCsrf(staleUpdate, cookie, token);
-        var stale = await client.SendAsync(staleUpdate);
-        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        var receipt = await created.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrWhiteSpace(receipt.GetProperty("id").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(receipt.GetProperty("patientNumber").GetString()));
+        Assert.True(receipt.TryGetProperty("etag", out _));
+        Assert.False(receipt.TryGetProperty("mobileNumber", out _));
+        Assert.False(receipt.TryGetProperty("addressLine1", out _));
+        Assert.False(receipt.TryGetProperty("dateOfBirth", out _));
+        Assert.Equal("\"1\"", created.Headers.ETag?.ToString());
     }
 
     private static void SetIdentity(HttpClient client, string permissions, string? scope = null)
