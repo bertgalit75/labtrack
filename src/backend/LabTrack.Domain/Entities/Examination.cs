@@ -162,7 +162,39 @@ public sealed class TestResult
     public long? CurrentRevisionId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public long CreatedByUserId { get; private set; }
+    // EF Core uses this constructor when materializing persisted results.
     private TestResult() { }
+
+    /// <summary>
+    /// Creates the stable result record for one examination-test parameter.
+    /// CurrentRevisionId is intentionally not set here; the application workflow
+    /// advances it only after a revision has been persisted successfully.
+    /// </summary>
+    public TestResult(
+        long examinationTestId,
+        long testParameterDefinitionId,
+        long createdByUserId)
+    {
+        if (examinationTestId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(examinationTestId), "Examination-test ID must be a positive value.");
+        }
+
+        if (testParameterDefinitionId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(testParameterDefinitionId), "Test-parameter definition ID must be a positive value.");
+        }
+
+        if (createdByUserId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdByUserId), "Creator user ID must be a positive value.");
+        }
+
+        ExaminationTestId = examinationTestId;
+        TestParameterDefinitionId = testParameterDefinitionId;
+        CreatedByUserId = createdByUserId;
+        CreatedAtUtc = DateTime.UtcNow;
+    }
 }
 
 public sealed class TestResultRevision
@@ -187,7 +219,128 @@ public sealed class TestResultRevision
     public string? RevisionReason { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public long CreatedByUserId { get; private set; }
+
+    // EF Core uses this constructor when materializing persisted revisions.
     private TestResultRevision() { }
+
+    /// <summary>
+    /// Creates a draft snapshot of a result value. Parameter compatibility,
+    /// reference-interval applicability, and clinical interpretation remain
+    /// application responsibilities because they depend on catalog configuration.
+    /// </summary>
+    public TestResultRevision(
+        long testResultId,
+        int revisionNumber,
+        string valueType,
+        long createdByUserId,
+        decimal? numericValue = null,
+        string? textValue = null,
+        long? resultValueOptionId = null,
+        string? titerValue = null,
+        long? unitId = null,
+        long? referenceIntervalId = null,
+        string? unitSnapshot = null,
+        string? referenceRangeSnapshot = null,
+        string? methodSnapshot = null,
+        bool isAbnormal = false,
+        bool isCritical = false,
+        string? interpretation = null,
+        string? revisionReason = null)
+    {
+        if (testResultId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(testResultId), "Test-result ID must be a positive value.");
+        }
+
+        if (revisionNumber <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(revisionNumber), "Revision number must be a positive value.");
+        }
+
+        if (createdByUserId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdByUserId), "Creator user ID must be a positive value.");
+        }
+
+        if (string.IsNullOrWhiteSpace(valueType))
+        {
+            throw new ArgumentException("Value type is required.", nameof(valueType));
+        }
+
+        var normalizedValueType = valueType.Trim();
+        if (normalizedValueType is not ("Numeric" or "Qualitative" or "Text" or "Titer"))
+        {
+            throw new ArgumentException("Value type must be Numeric, Qualitative, Text, or Titer.", nameof(valueType));
+        }
+
+        if (numericValue is < -999999999999.999999m or > 999999999999.999999m ||
+            (numericValue.HasValue && decimal.Round(numericValue.Value, 6) != numericValue.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(numericValue), "Numeric value must fit DECIMAL(18,6).");
+        }
+
+        if (resultValueOptionId is <= 0 || unitId is <= 0 || referenceIntervalId is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(resultValueOptionId), "Optional catalog identifiers must be positive when supplied.");
+        }
+
+        var normalizedTextValue = textValue?.Trim();
+        var normalizedTiterValue = titerValue?.Trim();
+        var normalizedUnitSnapshot = unitSnapshot?.Trim();
+        var normalizedReferenceRangeSnapshot = referenceRangeSnapshot?.Trim();
+        var normalizedMethodSnapshot = methodSnapshot?.Trim();
+        var normalizedInterpretation = interpretation?.Trim();
+        var normalizedRevisionReason = revisionReason?.Trim();
+
+        if (normalizedTiterValue?.Length > 80 ||
+            normalizedUnitSnapshot?.Length > 120 ||
+            normalizedReferenceRangeSnapshot?.Length > 500 ||
+            normalizedMethodSnapshot?.Length > 160 ||
+            normalizedInterpretation?.Length > 2000 ||
+            normalizedRevisionReason?.Length > 1000)
+        {
+            throw new ArgumentException("A revision text field exceeds its database column length.");
+        }
+
+        var hasNumeric = numericValue.HasValue;
+        var hasText = normalizedTextValue is not null;
+        var hasOption = resultValueOptionId.HasValue;
+        var hasTiter = normalizedTiterValue is not null;
+
+        var validPayload = normalizedValueType switch
+        {
+            "Numeric" => hasNumeric && !hasText && !hasOption && !hasTiter,
+            "Qualitative" => hasOption && !hasNumeric && !hasText && !hasTiter,
+            "Text" => hasText && !hasNumeric && !hasOption && !hasTiter,
+            "Titer" => hasTiter && !hasNumeric && !hasText && !hasOption,
+            _ => false
+        };
+
+        if (!validPayload)
+        {
+            throw new ArgumentException("Exactly one value payload matching ValueType must be supplied.");
+        }
+
+        TestResultId = testResultId;
+        RevisionNumber = revisionNumber;
+        ValueType = normalizedValueType;
+        NumericValue = numericValue;
+        TextValue = normalizedTextValue;
+        ResultValueOptionId = resultValueOptionId;
+        TiterValue = normalizedTiterValue;
+        UnitId = unitId;
+        ReferenceIntervalId = referenceIntervalId;
+        UnitSnapshot = normalizedUnitSnapshot;
+        ReferenceRangeSnapshot = normalizedReferenceRangeSnapshot;
+        MethodSnapshot = normalizedMethodSnapshot;
+        IsAbnormal = isAbnormal;
+        IsCritical = isCritical;
+        Interpretation = normalizedInterpretation;
+        Status = "Draft";
+        RevisionReason = normalizedRevisionReason;
+        CreatedAtUtc = DateTime.UtcNow;
+        CreatedByUserId = createdByUserId;
+    }
 }
 
 public sealed class AuditLog
