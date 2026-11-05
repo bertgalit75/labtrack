@@ -1,54 +1,52 @@
 # Patient authorization and data-access security gate
 
-**Status:** Interim fail-closed implementation; not a production approval  
+**Status:** Examination/department scope implemented in application code; schema rollout and access administration remain gated  
 **Applies to:** Patient Management API on `feature/patient-management-api`  
 **Related design:** SDD-07, SDD-09, SDD-11
 
-## 1. Security findings
+## 1. Confirmed access model
 
-The patient API initially accepted a `patient_scope=all` claim for list, detail, and demographic-update operations. That claim did not prove that the caller had an assigned duty for any particular patient. SDD-07 requires object-level access and limits data to assigned duties. SDD-09 explicitly leaves the choice among department, assigned-worklist, and examination-assignment scope open. SDD-11 requires record-scope, assignment, status, and field-level checks.
+The approved model is **examination-based access intersected with department membership**. Separately authorized registration staff may register a patient using the `patients.register` permission; registration does not grant subsequent read or edit access.
 
-The current domain and EF model do not contain a patient-to-user/department/worklist assignment entity or queryable relation. A broad claim cannot safely substitute for that missing data model.
+A caller may read or update a patient only when all of the following are true at request time:
 
-## 2. Interim enforcement
+1. The authenticated caller has the operation permission (`patients.read` or `patients.demographics.update`).
+2. A persisted, active `PatientExaminationAssignment` exists for that caller and patient.
+3. The assignment is within its effective date interval.
+4. The assignment references an actual examination whose `PatientId` matches the patient.
+5. The caller has an active `UserDepartmentMembership` for the same department, also within its effective date interval.
 
-Until an approved scope model exists:
+A `patient_scope=all` claim, caller-supplied patient ID, query filter, or other client-controlled scope value cannot create or widen access. Search predicates are applied in the database before filtering, counting, sorting, pagination, and projection. Detail and update use the same predicate and return a non-disclosing 404 when the patient is outside scope. Revoking either assignment or department membership removes access on the next request.
 
-| Operation | Interim behavior |
-|---|---|
-| `POST /api/v1/patients` | Remains separately gated by `patients.register` and antiforgery validation. Returns only patient ID, generated patient number, and ETag. |
-| `GET /api/v1/patients` | Denied, including when a caller has `patients.read` and a broad `patient_scope=all` claim. |
-| `GET /api/v1/patients/{id}` | Denied; direct-ID access cannot bypass the list restriction. |
-| `PATCH /api/v1/patients/{id}` | Denied until field-level permission and record scope are enforced together. |
-| Identity correction and merge | No generic PATCH/DELETE path; dedicated request/approval/execute workflows remain required and are not enabled by this API. |
+## 2. Implementation
 
-The API read summary contract is intentionally limited to patient ID, patient number, name, status, and ETag. It excludes date of birth, sex, contact details, address, canonical linkage, and audit metadata. The registration receipt is narrower still.
+- Added persisted domain records for examination assignments, department membership, and departments.
+- Added EF Core mappings, lookup indexes, restrictive relationships, and a composite examination/patient relationship to prevent an assignment from associating an examination with the wrong patient.
+- Added the review-only MariaDB schema extension at `database/security/PatientExaminationDepartmentAccess.sql`. It is intentionally separate from the original consolidated install baseline until schema review and provider qualification are complete.
+- Patient list, detail, and demographic-update service operations now require the authenticated user ID and apply the same persisted scope predicate.
+- Patient list projection omits date of birth and sex; detail/update responses remain limited to patient ID, patient number, name, status, and ETag.
+- Registration remains independently permission-gated and antiforgery-protected, and returns only patient ID, patient number, and ETag.
+- No broad patient-scope claim is used by the implementation.
 
-No role grants are seeded. A permission code is not granted merely because it appears in a policy or test. SDD-09 remains the source for explicit role-grant approval and the open operational scope decisions.
+## 3. Operational provisioning boundary
 
-## 3. Required production scope design
+The scope engine is implemented, but this branch does **not** yet provide an administrator-facing workflow for creating, approving, reviewing, or revoking department memberships and examination assignments. Those rows must not be populated by ad hoc client claims or self-service APIs. Before enabling real users, an authorized, audited access-administration workflow and its separation-of-duty rules must be implemented and tested. The review-only SQL extension must also be reconciled into the approved migration/install process and qualified on disposable MariaDB 10.11.
 
-Before patient reads or edits can be enabled, select and approve a concrete scope model:
-
-1. **Assignment source:** department/unit, assigned worklist, examination assignment, explicit patient assignment, or a documented combination.
-2. **Authoritative relation:** persisted server-side records linking the authenticated staff identity to the permitted scope. Client-supplied patient IDs, query filters, and untrusted claims must never define the scope.
-3. **Query enforcement:** apply scope predicates inside the database query before count, sort, pagination, and projection. Do not fetch all rows and filter in memory.
-4. **Direct-ID enforcement:** apply the identical scope predicate to detail and update queries. Return a non-disclosing not-found response for records outside scope.
-5. **Scope lifecycle:** define who can assign/revoke scope, effective dates, review, audit, and immediate revocation behavior.
-6. **Field minimization:** approve field sets separately for list, detail, registration, correction, and each role/duty. Sensitive fields must not be included by default.
-7. **Status rules:** define whether inactive, merged/non-canonical, archived, or otherwise restricted patients may be searched, read, selected, or edited for each workflow.
-8. **Identity correction:** define protected identity fields, reason format, approver, before/after audit treatment, and optimistic concurrency.
-9. **Merge:** define requester/approver/executor separation, cycle prevention, canonical-patient behavior, and preservation of historical examination/result references.
+No default departments, department memberships, examination assignments, role grants, or permission grants are seeded. This avoids silently granting access. The user and department identifiers must come from trusted, provisioned records.
 
 ## 4. Required authorization tests
 
 The acceptance suite must prove:
 
 - Anonymous callers receive 401.
-- Authenticated callers without the required permission receive 403.
-- A broad `patient_scope=all` claim alone cannot grant access.
+- Authenticated callers without the required operation permission receive 403.
+- A broad `patient_scope=all` claim cannot grant access.
+- A caller with no persisted assignment sees no patients.
+- A caller assigned to patient A in department X can access A only while both the examination assignment and department membership are active and effective.
 - A caller assigned to patient A cannot list, read, update, or infer patient B by changing an ID or search term.
-- Revoking an assignment removes access without waiting for the user's next login.
+- An assignment to a different department does not grant access unless the caller is a member of that same department.
+- A mismatched examination/patient pair cannot grant access.
+- Revoking or expiring either relation removes access on the next request.
 - Pagination totals and result counts include only in-scope records.
 - Every role/permission combination is tested for allowed and denied fields.
 - Routine demographic edits cannot alter identity-defining fields.
@@ -58,8 +56,9 @@ The acceptance suite must prove:
 
 ## 5. Other security gates before production
 
-The following SDD-07 controls are not certified by the patient API integration tests and remain separate production gates:
+The following SDD-07 controls are not certified by the patient API tests and remain separate production gates:
 
+- Implement and test an authorized access-administration workflow, including approval, review, revocation, and audit of department and examination assignments.
 - Verify active-account status and immediate session invalidation on deactivation.
 - Implement and test the 15-minute inactivity and 8-hour absolute session limits.
 - Implement the LAN/offline-capable additional verification required for System Administrators and Authorized Signatories.
@@ -70,4 +69,4 @@ The following SDD-07 controls are not certified by the patient API integration t
 
 ## 6. Release rule
 
-Patient list/detail/update access must remain denied until the assignment model, role grants, field-level matrix, and cross-record authorization tests are approved and implemented. This document records an interim security hold; it does not approve the unresolved role matrix or authorize production data, database execution, or deployment.
+The examination/department authorization predicate is implemented, but production access remains gated until the schema extension is migrated through the approved process, the assignment-administration workflow is available, role grants and field-level rules are approved, and cross-record authorization tests pass against MariaDB. This document does not authorize production data, database execution, or deployment.
