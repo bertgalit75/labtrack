@@ -79,8 +79,6 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
         builder.Entity<TestResult>().ToTable("TestResults").HasKey(x => x.TestResultId);
         builder.Entity<TestResultRevision>().ToTable("TestResultRevisions").HasKey(x => x.TestResultRevisionId);
         builder.Entity<TestResultRevision>().Property(x => x.NumericValue).HasPrecision(18, 6);
-        builder.Entity<AuditLog>().ToTable("AuditLogs").HasKey(x => x.AuditLogId);
-
         // This initial mapping is a scaffold only. Exact column/type/constraint mapping must be reconciled
         // against SDD-03 and the consolidated SQL, then tested on disposable MariaDB 10.11.
     }
