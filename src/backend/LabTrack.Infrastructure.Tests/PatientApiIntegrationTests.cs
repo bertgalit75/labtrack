@@ -82,7 +82,7 @@ public sealed class PatientApiIntegrationTests
         var receipt = await created.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(string.IsNullOrWhiteSpace(receipt.GetProperty("id").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(receipt.GetProperty("patientNumber").GetString()));
-        Assert.True(receipt.TryGetProperty("etag", out _));
+        Assert.True(receipt.TryGetProperty("eTag", out _));
         Assert.False(receipt.TryGetProperty("mobileNumber", out _));
         Assert.False(receipt.TryGetProperty("addressLine1", out _));
         Assert.False(receipt.TryGetProperty("dateOfBirth", out _));
