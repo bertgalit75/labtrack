@@ -1,4 +1,5 @@
-﻿using LabTrack.Domain.Entities;
+﻿
+using LabTrack.Domain.Entities;
 using LabTrack.Infrastructure.Identity;
 using LabTrack.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ public sealed class MariaDbPersistenceIntegrationTests
 {
     [MariaDbFact]
     [Trait("Category", "MariaDB")]
-    public async Task Patient_can_be_inserted_read_and_unique_number_is_enforced()
+    public async Task Patient_persistence_constraints_and_rollback_work()
     {
         var connectionString =
             Environment.GetEnvironmentVariable(
@@ -45,6 +46,11 @@ public sealed class MariaDbPersistenceIntegrationTests
                 new MariaDbServerVersion(new Version(10, 11, 6)))
             .Options;
 
+        var uniqueSuffix = Guid.NewGuid().ToString("N");
+        var username = $"mariadb-test-{uniqueSuffix}";
+        var patientNumber = $"IT-{uniqueSuffix[..24]}";
+        var dateOfBirth = new DateOnly(1990, 1, 1);
+
         await using var db = new LabTrackDbContext(options);
 
         await db.Database.OpenConnectionAsync();
@@ -54,9 +60,7 @@ public sealed class MariaDbPersistenceIntegrationTests
 
         try
         {
-            var uniqueSuffix = Guid.NewGuid().ToString("N");
-            var username = $"mariadb-test-{uniqueSuffix}";
-
+            // Create a real Identity user for the required patient FK.
             var user = new ApplicationUser
             {
                 UserName = username,
@@ -71,13 +75,12 @@ public sealed class MariaDbPersistenceIntegrationTests
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            var patientNumber = $"IT-{uniqueSuffix[..24]}";
-
+            // Insert a patient referencing the newly created user.
             var patient = new Patient(
                 patientNumber,
                 "MariaDB",
                 "IntegrationTest",
-                new DateOnly(1990, 1, 1),
+                dateOfBirth,
                 "NotSpecified",
                 user.Id);
 
@@ -86,6 +89,7 @@ public sealed class MariaDbPersistenceIntegrationTests
 
             var patientId = patient.PatientId;
 
+            // Verify actual database round-trip, not just tracked values.
             db.ChangeTracker.Clear();
 
             var persistedPatient = await db.Patients
@@ -96,7 +100,9 @@ public sealed class MariaDbPersistenceIntegrationTests
             Assert.Equal("MariaDB", persistedPatient.FirstName);
             Assert.Equal("IntegrationTest", persistedPatient.LastName);
             Assert.Equal(user.Id, persistedPatient.RegisteredByUserId);
+            Assert.Equal(dateOfBirth, persistedPatient.DateOfBirth);
 
+            // Verify the unique patient-number constraint.
             var duplicatePatient = new Patient(
                 patientNumber,
                 "Duplicate",
@@ -107,12 +113,59 @@ public sealed class MariaDbPersistenceIntegrationTests
 
             db.Patients.Add(duplicatePatient);
 
-            await Assert.ThrowsAsync<DbUpdateException>(
-                () => db.SaveChangesAsync());
+            var duplicateException =
+                await Assert.ThrowsAsync<DbUpdateException>(
+                    () => db.SaveChangesAsync());
+
+            Assert.IsType<MySqlException>(
+                duplicateException.InnerException);
+
+            Assert.Equal(
+                1062,
+                ((MySqlException)duplicateException.InnerException!).Number);
+
+            // Detach the failed insert before testing the FK constraint.
+            db.ChangeTracker.Clear();
+
+            var orphanPatient = new Patient(
+                $"FK-{uniqueSuffix[..25]}",
+                "Invalid",
+                "ForeignKey",
+                null,
+                null,
+                long.MaxValue);
+
+            db.Patients.Add(orphanPatient);
+
+            var foreignKeyException =
+                await Assert.ThrowsAsync<DbUpdateException>(
+                    () => db.SaveChangesAsync());
+
+            Assert.IsType<MySqlException>(
+                foreignKeyException.InnerException);
+
+            Assert.Equal(
+                1452,
+                ((MySqlException)foreignKeyException.InnerException!).Number);
         }
         finally
         {
+            // Remove all successful writes made by this test.
             await transaction.RollbackAsync();
         }
+
+        await db.Database.CloseConnectionAsync();
+
+        // Verify rollback from a separate database context.
+        await using var verificationDb =
+            new LabTrackDbContext(options);
+
+        Assert.False(
+            await verificationDb.Users
+                .AnyAsync(u => u.UserName == username));
+
+        Assert.False(
+            await verificationDb.Patients
+                .AnyAsync(p => p.PatientNumber == patientNumber));
     }
 }
