@@ -114,4 +114,92 @@ public sealed class ExaminationDomainTests
             createdByUserId: 34,
             priority: priority!));
     }
+
+    [Fact]
+    public void Examination_test_creation_sets_pending_defaults_and_utc_request_time()
+    {
+        var beforeCreation = DateTime.UtcNow;
+
+        var examinationTest = new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34);
+
+        var afterCreation = DateTime.UtcNow;
+
+        Assert.Equal(12, examinationTest.ExaminationId);
+        Assert.Equal(56, examinationTest.TestDefinitionVersionId);
+        Assert.Equal(34, examinationTest.RequestedByUserId);
+        Assert.Equal((ushort)1, examinationTest.TestInstanceNumber);
+        Assert.Equal("Routine", examinationTest.Priority);
+        Assert.Equal("Pending", examinationTest.Status);
+        Assert.Null(examinationTest.CompletedAtUtc);
+        Assert.Null(examinationTest.ActualMethodId);
+        Assert.Equal(DateTimeKind.Utc, examinationTest.RequestedAtUtc.Kind);
+        Assert.InRange(examinationTest.RequestedAtUtc, beforeCreation, afterCreation);
+    }
+
+    [Fact]
+    public void Examination_test_creation_accepts_custom_instance_priority_and_method()
+    {
+        var examinationTest = new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34,
+            testInstanceNumber: 2,
+            priority: " Urgent ",
+            actualMethodId: 78);
+
+        Assert.Equal((ushort)2, examinationTest.TestInstanceNumber);
+        Assert.Equal("Urgent", examinationTest.Priority);
+        Assert.Equal(78, examinationTest.ActualMethodId);
+    }
+
+    [Fact]
+    public void Examination_test_creation_rejects_non_positive_foreign_key_identifiers()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExaminationTest(
+            examinationId: 0,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 0,
+            requestedByUserId: 34));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 0));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34,
+            actualMethodId: 0));
+    }
+
+    [Fact]
+    public void Examination_test_creation_rejects_zero_instance_number_and_invalid_priority()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34,
+            testInstanceNumber: 0));
+
+        Assert.Throws<ArgumentException>(() => new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34,
+            priority: " "));
+
+        Assert.Throws<ArgumentException>(() => new ExaminationTest(
+            examinationId: 12,
+            testDefinitionVersionId: 56,
+            requestedByUserId: 34,
+            priority: new string('P', 21)));
+    }
+
 }
