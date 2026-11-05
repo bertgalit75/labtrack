@@ -12,7 +12,72 @@ public sealed class Examination
     public DateTime CreatedAtUtc { get; private set; }
     public long CreatedByUserId { get; private set; }
     public long RowVersion { get; private set; } = 1;
+
+    // EF Core uses this constructor when materializing persisted examinations.
     private Examination() { }
+
+    /// <summary>
+    /// Creates a registered examination. The caller must obtain the examination
+    /// number from the transaction-safe numbering service before constructing it.
+    /// Patient activity/canonical status and actor authorization are enforced by
+    /// the application workflow, not inferred by this entity.
+    /// </summary>
+    public Examination(
+        string examinationNumber,
+        long patientId,
+        DateOnly examinationDate,
+        long createdByUserId,
+        string priority = "Routine",
+        string? notes = null)
+    {
+        if (string.IsNullOrWhiteSpace(examinationNumber))
+        {
+            throw new ArgumentException("Examination number is required.", nameof(examinationNumber));
+        }
+
+        var normalizedExaminationNumber = examinationNumber.Trim();
+        if (normalizedExaminationNumber.Length > 40)
+        {
+            throw new ArgumentException("Examination number cannot exceed 40 characters.", nameof(examinationNumber));
+        }
+
+        if (patientId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(patientId), "Patient ID must be a positive value.");
+        }
+
+        if (createdByUserId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdByUserId), "Creator user ID must be a positive value.");
+        }
+
+        if (string.IsNullOrWhiteSpace(priority))
+        {
+            throw new ArgumentException("Priority is required.", nameof(priority));
+        }
+
+        var normalizedPriority = priority.Trim();
+        if (normalizedPriority.Length > 20)
+        {
+            throw new ArgumentException("Priority cannot exceed 20 characters.", nameof(priority));
+        }
+
+        var normalizedNotes = notes?.Trim();
+        if (normalizedNotes?.Length > 2000)
+        {
+            throw new ArgumentException("Notes cannot exceed 2000 characters.", nameof(notes));
+        }
+
+        ExaminationNumber = normalizedExaminationNumber;
+        PatientId = patientId;
+        ExaminationDate = examinationDate;
+        CreatedByUserId = createdByUserId;
+        Priority = normalizedPriority;
+        Notes = normalizedNotes;
+        Status = "Registered";
+        CreatedAtUtc = DateTime.UtcNow;
+        RowVersion = 1;
+    }
 }
 
 public sealed class ExaminationTest
