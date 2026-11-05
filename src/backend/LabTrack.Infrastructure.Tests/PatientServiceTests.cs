@@ -117,7 +117,7 @@ public sealed class PatientServiceTests
         var effectiveMembershipDepartmentId = membershipDepartmentId ?? departmentId;
         if (db.Departments.All(d => d.DepartmentId != departmentId))
             db.Departments.Add(new Department { DepartmentId = departmentId, DepartmentCode = "D" + departmentId, DepartmentName = "Department " + departmentId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
-        if (db.Departments.All(d => d.DepartmentId != effectiveMembershipDepartmentId))
+        if (effectiveMembershipDepartmentId != departmentId && db.Departments.All(d => d.DepartmentId != effectiveMembershipDepartmentId))
             db.Departments.Add(new Department { DepartmentId = effectiveMembershipDepartmentId, DepartmentCode = "D" + effectiveMembershipDepartmentId, DepartmentName = "Department " + effectiveMembershipDepartmentId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync();
         var now = DateTime.UtcNow.AddMinutes(-1);
