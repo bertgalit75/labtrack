@@ -97,7 +97,7 @@ public sealed class PatientService(LabTrackDbContext db) : IPatientService
         return Map(patient);
     }
 
-    private static string ETag(long rowVersion) => $"\\"{rowVersion}\\"";
+    private static string ETag(long rowVersion) => $"\"{rowVersion}\"";
 
     private static PatientDto Map(Patient p) => new(
         p.PatientId.ToString(), p.PatientNumber, p.FirstName, p.MiddleName, p.LastName, p.Suffix,
