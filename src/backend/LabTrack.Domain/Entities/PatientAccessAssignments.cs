@@ -25,3 +25,12 @@ public sealed class UserDepartmentMembership
     public DateTime EffectiveFromUtc { get; set; }
     public DateTime? EffectiveToUtc { get; set; }
 }
+
+public sealed class Department
+{
+    public long DepartmentId { get; set; }
+    public string DepartmentCode { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; }
+}
