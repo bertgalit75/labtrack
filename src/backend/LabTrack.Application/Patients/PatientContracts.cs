@@ -16,7 +16,7 @@ public sealed record PatientReadSummaryDto(string Id, string PatientNumber, stri
 
 public sealed record PatientListItemDto(
     string Id, string PatientNumber, string FirstName, string? MiddleName, string LastName,
-    DateOnly? DateOfBirth, string? SexAtRegistration, string PatientStatus, string ETag);
+    string PatientStatus, string ETag);
 
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, long TotalItems, int TotalPages);
 
