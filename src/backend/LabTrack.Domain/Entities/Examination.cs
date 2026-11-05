@@ -303,9 +303,9 @@ public sealed class TestResultRevision
         }
 
         var hasNumeric = numericValue.HasValue;
-        var hasText = normalizedTextValue is not null;
+        var hasText = !string.IsNullOrWhiteSpace(normalizedTextValue);
         var hasOption = resultValueOptionId.HasValue;
-        var hasTiter = normalizedTiterValue is not null;
+        var hasTiter = !string.IsNullOrWhiteSpace(normalizedTiterValue);
 
         var validPayload = normalizedValueType switch
         {
