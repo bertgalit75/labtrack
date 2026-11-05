@@ -24,7 +24,7 @@ public sealed class TestDefinition
         CreatedAtUtc = DateTime.UtcNow;
     }
 
-    private static string RequiredText(string value, int maxLength, string parameterName)
+    internal static string RequiredText(string value, int maxLength, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("A value is required.", parameterName);
         var normalized = value.Trim();
@@ -32,7 +32,7 @@ public sealed class TestDefinition
         return normalized;
     }
 
-    private static string? OptionalText(string? value, int maxLength, string parameterName)
+    internal static string? OptionalText(string? value, int maxLength, string parameterName)
     {
         var normalized = value?.Trim();
         if (normalized?.Length > maxLength) throw new ArgumentException($"Value cannot exceed {maxLength} characters.", parameterName);
@@ -72,7 +72,7 @@ public sealed class TestDefinitionVersion
         EffectiveFrom = effectiveFrom;
         EffectiveTo = effectiveTo;
         DefaultMethodId = defaultMethodId;
-        Instructions = OptionalText(instructions, 2000, nameof(instructions));
+        Instructions = TestDefinition.OptionalText(instructions, 2000, nameof(instructions));
         VersionStatus = "Draft";
         CreatedAtUtc = DateTime.UtcNow;
     }
@@ -102,8 +102,8 @@ public sealed class TestParameterDefinition
         if (normalizedType is not ("Numeric" or "Qualitative" or "Text" or "Titer"))
             throw new ArgumentException("Value type must be Numeric, Qualitative, Text, or Titer.", nameof(valueType));
         TestDefinitionVersionId = testDefinitionVersionId;
-        ParameterCode = RequiredText(parameterCode, 60, nameof(parameterCode));
-        ParameterName = RequiredText(parameterName, 160, nameof(parameterName));
+        ParameterCode = TestDefinition.RequiredText(parameterCode, 60, nameof(parameterCode));
+        ParameterName = TestDefinition.RequiredText(parameterName, 160, nameof(parameterName));
         ValueType = normalizedType;
         UnitId = unitId;
         DecimalPlaces = decimalPlaces;
@@ -151,12 +151,12 @@ public sealed class ReferenceInterval
         if (effectiveFrom.HasValue && effectiveTo.HasValue && effectiveTo < effectiveFrom)
             throw new ArgumentException("Effective-to date cannot precede effective-from date.", nameof(effectiveTo));
         TestParameterDefinitionId = testParameterDefinitionId;
-        SexApplicability = OptionalText(sexApplicability, 30, nameof(sexApplicability));
+        SexApplicability = TestDefinition.OptionalText(sexApplicability, 30, nameof(sexApplicability));
         AgeMinimumDays = ageMinimumDays;
         AgeMaximumDays = ageMaximumDays;
         LowerLimit = lowerLimit;
         UpperLimit = upperLimit;
-        ReferenceText = OptionalText(referenceText, 500, nameof(referenceText));
+        ReferenceText = TestDefinition.OptionalText(referenceText, 500, nameof(referenceText));
         UnitId = unitId;
         TestMethodId = testMethodId;
         EffectiveFrom = effectiveFrom;
@@ -182,8 +182,8 @@ public sealed class ResultValueOption
     {
         if (testParameterDefinitionId <= 0) throw new ArgumentOutOfRangeException(nameof(testParameterDefinitionId));
         TestParameterDefinitionId = testParameterDefinitionId;
-        OptionCode = RequiredText(optionCode, 60, nameof(optionCode));
-        OptionLabel = RequiredText(optionLabel, 160, nameof(optionLabel));
+        OptionCode = TestDefinition.RequiredText(optionCode, 60, nameof(optionCode));
+        OptionLabel = TestDefinition.RequiredText(optionLabel, 160, nameof(optionLabel));
         DisplayOrder = displayOrder;
         IsAbnormal = isAbnormal;
         IsActive = true;
