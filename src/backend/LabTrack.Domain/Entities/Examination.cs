@@ -63,7 +63,7 @@ public sealed class TestResultRevision
     private TestResultRevision() { }
 }
 
-public sealed class AuditLog
+public sealed partial class AuditLog
 {
     public long AuditLogId { get; private set; }
     public long? ActorUserId { get; private set; }
