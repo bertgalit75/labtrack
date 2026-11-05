@@ -49,6 +49,7 @@ public sealed class PatientApiIntegrationTests
         {
             Content = JsonContent.Create(new { mobileNumber = "09999999999" })
         };
+        patch.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
         var update = await client.SendAsync(patch);
         Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
     }
