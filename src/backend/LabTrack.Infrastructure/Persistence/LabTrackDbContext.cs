@@ -12,6 +12,7 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<PatientExaminationAssignment> PatientExaminationAssignments => Set<PatientExaminationAssignment>();
     public DbSet<UserDepartmentMembership> UserDepartmentMemberships => Set<UserDepartmentMembership>();
+    public DbSet<Department> Departments => Set<Department>();
     public DbSet<TestDefinition> TestDefinitions => Set<TestDefinition>();
     public DbSet<TestDefinitionVersion> TestDefinitionVersions => Set<TestDefinitionVersion>();
     public DbSet<TestParameterDefinition> TestParameterDefinitions => Set<TestParameterDefinition>();
@@ -39,6 +40,14 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
         builder.Entity<PatientExaminationAssignment>().HasIndex(x => new { x.UserId, x.ExaminationId, x.DepartmentId, x.IsActive });
         builder.Entity<PatientExaminationAssignment>().HasIndex(x => new { x.PatientId, x.UserId, x.DepartmentId });
         builder.Entity<UserDepartmentMembership>().ToTable("UserDepartmentMemberships").HasKey(x => x.UserDepartmentMembershipId);
+        builder.Entity<Department>().ToTable("Departments").HasKey(x => x.DepartmentId);
+        builder.Entity<Department>().Property(x => x.DepartmentCode).HasMaxLength(40).IsRequired();
+        builder.Entity<Department>().Property(x => x.DepartmentName).HasMaxLength(120).IsRequired();
+        builder.Entity<Department>().HasIndex(x => x.DepartmentCode).IsUnique();
+        builder.Entity<PatientExaminationAssignment>().HasOne<Patient>().WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<Examination>().WithMany().HasForeignKey(x => x.ExaminationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PatientExaminationAssignment>().HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<UserDepartmentMembership>().HasOne<Department>().WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<UserDepartmentMembership>().HasIndex(x => new { x.UserId, x.DepartmentId, x.IsActive });
         builder.Entity<Patient>().Property(x => x.PatientId).ValueGeneratedOnAdd();
         builder.Entity<Patient>().Property(x => x.PatientNumber).HasMaxLength(32).IsRequired();
