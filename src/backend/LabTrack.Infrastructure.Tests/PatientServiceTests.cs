@@ -114,11 +114,11 @@ public sealed class PatientServiceTests
         var examination = new Examination("EX-" + Guid.NewGuid().ToString("N")[..12], patient.PatientId, DateOnly.FromDateTime(DateTime.UtcNow), 7);
         db.Examinations.Add(examination);
         await db.SaveChangesAsync();
-        var membershipDepartmentId = departmentId;
+        var effectiveMembershipDepartmentId = membershipDepartmentId ?? departmentId;
         if (db.Departments.All(d => d.DepartmentId != departmentId))
             db.Departments.Add(new Department { DepartmentId = departmentId, DepartmentCode = "D" + departmentId, DepartmentName = "Department " + departmentId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
-        if (membershipDepartmentId is long otherDepartmentId && db.Departments.All(d => d.DepartmentId != otherDepartmentId))
-            db.Departments.Add(new Department { DepartmentId = otherDepartmentId, DepartmentCode = "D" + otherDepartmentId, DepartmentName = "Department " + otherDepartmentId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
+        if (db.Departments.All(d => d.DepartmentId != effectiveMembershipDepartmentId))
+            db.Departments.Add(new Department { DepartmentId = effectiveMembershipDepartmentId, DepartmentCode = "D" + effectiveMembershipDepartmentId, DepartmentName = "Department " + effectiveMembershipDepartmentId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync();
         var now = DateTime.UtcNow.AddMinutes(-1);
         db.PatientExaminationAssignments.Add(new PatientExaminationAssignment
