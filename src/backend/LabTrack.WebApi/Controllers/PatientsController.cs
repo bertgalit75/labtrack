@@ -90,7 +90,7 @@ public sealed class PatientsController(IPatientService patients) : ControllerBas
 
         try
         {
-            var patient = await patients.UpdateDemographicsAsync(id, request, actorId, rowVersion, GetActorId(), cancellationToken);
+            var patient = await patients.UpdateDemographicsAsync(id, request, actorId, rowVersion, cancellationToken);
             if (patient is null) return NotFound();
             Response.Headers["ETag"] = patient.ETag;
             return Ok(new PatientReadSummaryDto(patient.Id, patient.PatientNumber, patient.FirstName,
