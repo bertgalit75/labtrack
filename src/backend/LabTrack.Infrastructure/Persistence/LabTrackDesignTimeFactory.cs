@@ -5,6 +5,12 @@ using Microsoft.EntityFrameworkCore.Design;
 public sealed class LabTrackDesignTimeFactory
     : IDesignTimeDbContextFactory<LabTrackDbContext>
 {
+    // This reserved .invalid host lets EF inspect the model and migrations without
+    // requiring database credentials. Any design-time command that actually opens
+    // a connection must be run with LABTRACK_MARIADB_CONNECTION_STRING configured.
+    private const string DesignTimeConnectionString =
+        "Server=labtrack-design-time.invalid;Port=3306;Database=LabTrackDesignTime;User=design_time;Password=design_time;";
+
     public LabTrackDbContext CreateDbContext(string[] args)
     {
         var connectionString =
@@ -12,8 +18,7 @@ public sealed class LabTrackDesignTimeFactory
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException(
-                "LABTRACK_MARIADB_CONNECTION_STRING is not configured.");
+            connectionString = DesignTimeConnectionString;
         }
 
         var options = new DbContextOptionsBuilder<LabTrackDbContext>()
