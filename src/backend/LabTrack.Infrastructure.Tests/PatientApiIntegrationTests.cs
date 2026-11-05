@@ -45,10 +45,12 @@ public sealed class PatientApiIntegrationTests
         Assert.Equal(HttpStatusCode.NotFound, broadScopeDetail.StatusCode);
 
         SetIdentity(client, "patients.demographics.update", scope: "all");
+        var (patchCookie, patchToken) = await GetAntiforgeryAsync(client);
         using var patch = new HttpRequestMessage(HttpMethod.Patch, "/api/v1/patients/1")
         {
             Content = JsonContent.Create(new { mobileNumber = "09999999999" })
         };
+        AddCsrf(patch, patchCookie, patchToken);
         patch.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
         var update = await client.SendAsync(patch);
         Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
