@@ -10,6 +10,8 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
     : IdentityDbContext<ApplicationUser, IdentityRole<long>, long>(options)
 {
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<PatientExaminationAssignment> PatientExaminationAssignments => Set<PatientExaminationAssignment>();
+    public DbSet<UserDepartmentMembership> UserDepartmentMemberships => Set<UserDepartmentMembership>();
     public DbSet<TestDefinition> TestDefinitions => Set<TestDefinition>();
     public DbSet<TestDefinitionVersion> TestDefinitionVersions => Set<TestDefinitionVersion>();
     public DbSet<TestParameterDefinition> TestParameterDefinitions => Set<TestParameterDefinition>();
@@ -33,6 +35,11 @@ public sealed class LabTrackDbContext(DbContextOptions<LabTrackDbContext> option
         builder.Entity<IdentityUserToken<long>>().ToTable("AspNetUserTokens");
 
         builder.Entity<Patient>().ToTable("Patients").HasKey(x => x.PatientId);
+        builder.Entity<PatientExaminationAssignment>().ToTable("PatientExaminationAssignments").HasKey(x => x.PatientExaminationAssignmentId);
+        builder.Entity<PatientExaminationAssignment>().HasIndex(x => new { x.UserId, x.ExaminationId, x.DepartmentId, x.IsActive });
+        builder.Entity<PatientExaminationAssignment>().HasIndex(x => new { x.PatientId, x.UserId, x.DepartmentId });
+        builder.Entity<UserDepartmentMembership>().ToTable("UserDepartmentMemberships").HasKey(x => x.UserDepartmentMembershipId);
+        builder.Entity<UserDepartmentMembership>().HasIndex(x => new { x.UserId, x.DepartmentId, x.IsActive });
         builder.Entity<Patient>().Property(x => x.PatientId).ValueGeneratedOnAdd();
         builder.Entity<Patient>().Property(x => x.PatientNumber).HasMaxLength(32).IsRequired();
         builder.Entity<Patient>().HasIndex(x => x.PatientNumber).IsUnique();
