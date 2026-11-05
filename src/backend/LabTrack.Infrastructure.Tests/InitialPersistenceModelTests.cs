@@ -200,14 +200,14 @@ public sealed class InitialPersistenceModelTests
     }
 
     [Fact]
-    public void Microting_provider_builds_the_relational_model_for_mariadb_10_11_without_a_connection()
+    public void Pomelo_provider_builds_the_relational_model_for_mariadb_10_11_without_a_connection()
     {
         var options = new DbContextOptionsBuilder<LabTrackDbContext>()
             .UseMySql(new MariaDbServerVersion(new Version(10, 11, 0)))
             .Options;
 
         using var context = new LabTrackDbContext(options);
-        Assert.Equal("Microting.EntityFrameworkCore.MySql", context.Database.ProviderName);
+        Assert.Equal("Pomelo.EntityFrameworkCore.MySql", context.Database.ProviderName);
 
         var model = context.GetService<IDesignTimeModel>().Model;
         var relationalTables = model.GetRelationalModel().Tables
